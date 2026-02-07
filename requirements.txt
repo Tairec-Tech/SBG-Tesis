@@ -1,3 +1,5 @@
 flet
+flet-charts
 mysql-connector-python
 Pillow
+python-dotenv

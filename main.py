@@ -1,29 +1,50 @@
+"""
+Sistema de Brigadas Escolares — Brigadas Ambientales (Municipio Maracaibo).
+Flujo: intro (bloques SGB en verde) → Login / Registrar / Recuperar → App (sidebar + contenido).
+Tema: tonos verdes (brigadas ambientales).
+"""
+
 import asyncio
 import random
+import sys
 import flet as ft
 
-from views import build_views_content
+from util_log import log
 
-def main(page: ft.Page):
+# Para ver mensajes aunque la terminal no muestre nada: abre sbg_log.txt en esta carpeta
+log("--- App SBG iniciando ---")
+sys.stdout.flush()
+sys.stderr.flush()
+
+from theme import (
+    COLOR_FONDO_VERDE,
+    COLOR_FONDO_GRADIENTE_INICIO,
+    COLOR_FONDO_GRADIENTE_FIN,
+    COLOR_PRIMARIO_OSCURO,
+    COLOR_PRIMARIO,
+    COLOR_PRIMARIO_CLARO,
+)
+from screens import screen_login, screen_register, screen_recovery
+from screens import screen_dashboard
+from components import build_sidebar
+
+
+async def main(page: ft.Page):
+    log("Ventana principal abierta")
     page.title = "Sistema de Brigadas Escolares"
-    page.bgcolor = "#f5f0e8"  # Blanco hueso
+    page.bgcolor = COLOR_FONDO_GRADIENTE_INICIO
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.padding = 24
-    # Abrir ventana maximizada (resolución máxima disponible)
+    page.padding = 0
     page.window.maximized = True
     page.update()
 
-    animacion_entrada = ft.Animation(
-        duration=ft.Duration(milliseconds=600),
-        curve=ft.AnimationCurve.EASE_OUT_BACK,
-    )
-
-    # --- Animación inicial: bloques SGB que se construyen solos ---
+    # ----- Animación de entrada: bloques SGB (tonos verdes) -----
     size_bloque = 14
     gap_bloque = 4
     duracion_anim = 1200
-    c_s, c_g, c_b = "#2563eb", "#3b82f6", "#1d4ed8"
+    # Tres tonos verdes para S, G, B (brigadas ambientales)
+    c_s, c_g, c_b = COLOR_PRIMARIO_OSCURO, COLOR_PRIMARIO, COLOR_PRIMARIO_CLARO
     partes_sgb = [
         (0, 0, c_s), (1, 0, c_s), (2, 0, c_s), (0, 1, c_s), (0, 2, c_s), (1, 2, c_s), (2, 2, c_s), (2, 3, c_s), (0, 4, c_s), (1, 4, c_s), (2, 4, c_s),
         (4, 0, c_g), (5, 0, c_g), (6, 0, c_g), (4, 1, c_g), (4, 2, c_g), (5, 2, c_g), (6, 2, c_g), (4, 3, c_g), (6, 3, c_g), (4, 4, c_g), (5, 4, c_g), (6, 4, c_g),
@@ -31,6 +52,10 @@ def main(page: ft.Page):
     ]
     ancho_canvas = 11 * (size_bloque + gap_bloque)
     alto_canvas = 5 * (size_bloque + gap_bloque)
+    animacion_entrada = ft.Animation(
+        duration=ft.Duration(milliseconds=600),
+        curve=ft.AnimationCurve.EASE_OUT_BACK,
+    )
     bloques_containers = [
         ft.Container(animate=duracion_anim, animate_position=duracion_anim, animate_rotation=duracion_anim)
         for _ in partes_sgb
@@ -69,12 +94,83 @@ def main(page: ft.Page):
         canvas_sgb.scale = 1
         canvas_sgb.opacity = 1
 
-    texto_subtitulo_intro = ft.Text("Sistema de Brigadas Escolares", size=15, color="#64748b", text_align=ft.TextAlign.CENTER)
+    texto_subtitulo_intro = ft.Text(
+        "Sistema de Brigadas Escolares",
+        size=15,
+        color="#64748b",
+        text_align=ft.TextAlign.CENTER,
+    )
     texto_subtitulo_intro_container = ft.Container(
         content=texto_subtitulo_intro,
         opacity=0,
         animate_opacity=ft.Animation(duration=ft.Duration(milliseconds=500), curve=ft.AnimationCurve.EASE_OUT),
     )
+
+    # ----- Estado de la app -----
+    # Contenedor del área de contenido (sidebar cambia su .content)
+    content_area = ft.Container(expand=True, bgcolor=COLOR_FONDO_VERDE)
+    vista_actual = ["Panel Principal"]
+    content_area.content = screen_dashboard.build(page)
+
+    # Contenedor del sidebar para poder reconstruirlo al cambiar de vista
+    sidebar_container = ft.Container()
+
+
+    # Vista principal: sidebar + contenido (solo se muestra tras login)
+    vista_principal = ft.Container(expand=True)  # .content se asigna tras refresh_sidebar
+
+    def build_login_view():
+        return screen_login.build(
+            page,
+            on_login_success=ir_a_app,
+            on_go_register=ir_a_registro,
+            on_go_recovery=ir_a_recuperar,
+        )
+
+    # Un solo contenedor que cambia de contenido: login/registro/recuperar O app (sidebar+contenido)
+    contenedor_principal = ft.Container(expand=True, alignment=ft.Alignment.CENTER)
+
+    async def cerrar_sesion():
+        await page.shared_preferences.remove("usuario_actual")
+        contenedor_principal.content = build_login_view()
+        page.update()
+
+    def ir_a_app():
+        contenedor_principal.content = vista_principal
+        page.update()
+
+    def ir_a_registro():
+        contenedor_principal.content = screen_register.build(page, on_back_to_login=volver_a_login)
+        page.update()
+
+    def ir_a_recuperar():
+        contenedor_principal.content = screen_recovery.build(page, on_back_to_login=volver_a_login)
+        page.update()
+
+    def volver_a_login():
+        contenedor_principal.content = build_login_view()
+        page.update()
+
+    contenedor_principal.content = build_login_view()
+    vista_principal.content = ft.Row([sidebar_container, content_area], expand=True)
+
+    async def refresh_sidebar():
+        log("refresh_sidebar: construyendo sidebar...")
+        try:
+            sidebar_container.content = await build_sidebar(
+                page, content_area, vista_actual,
+                on_logout=lambda: page.run_task(cerrar_sesion),
+                on_nav_change=lambda: page.run_task(refresh_sidebar),
+            )
+            page.update()
+            log("refresh_sidebar: listo")
+        except Exception as e:
+            log(f"refresh_sidebar ERROR: {e}")
+            page.update()
+
+    # Primero mostrar la ventana (evita quedarse en "working"); el sidebar se rellena después
+    log("Añadiendo contenido a la página...")
+    # Overlay de intro: bloques SGB que se ensamblan + subtítulo (encima de todo al inicio)
     intro_overlay = ft.Container(
         content=ft.Column(
             [
@@ -87,7 +183,7 @@ def main(page: ft.Page):
             spacing=0,
         ),
         expand=True,
-        bgcolor="#f5f0e8",
+        bgcolor=COLOR_FONDO_GRADIENTE_INICIO,
         alignment=ft.Alignment.CENTER,
         animate_opacity=ft.Animation(duration=ft.Duration(milliseconds=500), curve=ft.AnimationCurve.EASE_OUT),
     )
@@ -104,263 +200,22 @@ def main(page: ft.Page):
         page.update()
         await asyncio.sleep(0.55)
         intro_overlay.visible = False
-        login_card.opacity = 1
-        login_card.offset = ft.Offset(0, 0)
         page.update()
 
-    # --- Header / Branding (arriba del todo) ---
-    logo_escudo = ft.Container(
-        content=ft.Icon(
-            ft.Icons.SHIELD_ROUNDED,
-            size=56,
-            color="#2563eb",
-        ),
-        width=88,
-        height=88,
-        border_radius=44,
-        bgcolor="#ffffff",
-        border=ft.Border.all(2, "#e2e8f0"),
-        alignment=ft.Alignment.CENTER,
-        shadow=ft.BoxShadow(
-            blur_radius=12,
-            spread_radius=0,
-            color=ft.Colors.with_opacity(0.08, "black"),
-            offset=ft.Offset(0, 4),
-        ),
-    )
-
-    titulo_principal = ft.Text(
-        "Sistema de Brigadas Escolares",
-        size=26,
-        weight="bold",
-        color="#1e293b",
-        text_align=ft.TextAlign.CENTER,
-    )
-    subtitulo_1 = ft.Text(
-        "Plataforma Digital para Coordinación de Brigadas",
-        size=14,
-        color="#64748b",
-        text_align=ft.TextAlign.CENTER,
-    )
-    subtitulo_2 = ft.Text(
-        "Municipio Maracaibo",
-        size=12,
-        color="#94a3b8",
-        text_align=ft.TextAlign.CENTER,
-    )
-
-    header = ft.Column(
-        [
-            logo_escudo,
-            ft.Container(height=16),
-            titulo_principal,
-            ft.Container(height=6),
-            subtitulo_1,
-            ft.Container(height=4),
-            subtitulo_2,
-        ],
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=0,
-    )
-
-    # --- Campos de la tarjeta ---
-    estilo_campo = dict(
-        border_color="#cbd5e1",
-        focused_border_color="#2563eb",
-        cursor_color="#2563eb",
-        text_style=ft.TextStyle(color="#1e293b"),
-        label_style=ft.TextStyle(color="#475569"),
-        width=320,
-        border_radius=12,
-    )
-
-    campo_institucion = ft.TextField(
-        label="Institución Educativa",
-        hint_text="Nombre de la institución",
-        prefix_icon=ft.Icons.SCHOOL_OUTLINED,
-        **estilo_campo,
-    )
-    campo_usuario = ft.TextField(
-        label="Usuario",
-        hint_text="Ingrese su usuario",
-        prefix_icon=ft.Icons.PERSON_OUTLINED,
-        **estilo_campo,
-    )
-    campo_password = ft.TextField(
-        label="Contraseña",
-        hint_text="Ingrese su contraseña",
-        prefix_icon=ft.Icons.LOCK_OUTLINED,
-        password=True,
-        can_reveal_password=True,
-        **estilo_campo,
-    )
-
-    # Botón Iniciar Sesión (primario) — al hacer clic va a la sección de vistas
-    boton_iniciar = ft.Button(
-        content=ft.Text("Iniciar Sesión", size=16, weight="w600"),
-        style=ft.ButtonStyle(
-            color="white",
-            bgcolor="#2563eb",
-            overlay_color=ft.Colors.with_opacity(0.2, "white"),
-            shape=ft.RoundedRectangleBorder(radius=12),
-            padding=ft.Padding.symmetric(vertical=16, horizontal=24),
-            elevation=4,
-            shadow_color=ft.Colors.with_opacity(0.35, "#1e3a5f"),
-        ),
-        width=320,
-        height=52,
-    )
-
-    # Enlace ¿Olvidó su contraseña?
-    enlace_olvido = ft.TextButton(
-        content=ft.Text("¿Olvidó su contraseña?", color="#2563eb", size=14),
-    )
-
-    # Divisor con "o"
-    divisor = ft.Row(
-        [
-            ft.Container(expand=True, height=1, bgcolor="#e2e8f0"),
-            ft.Container(
-                content=ft.Text(" o ", size=13, color="#94a3b8"),
-                padding=ft.Padding.symmetric(horizontal=12),
-            ),
-            ft.Container(expand=True, height=1, bgcolor="#e2e8f0"),
-        ],
-        alignment=ft.MainAxisAlignment.CENTER,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-    )
-
-    # Botón Registrar Nueva Institución (secundario / outline)
-    boton_registrar = ft.OutlinedButton(
-        content=ft.Text("Registrar Nueva Institución", size=14, weight="w500", color="#2563eb"),
-        style=ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=12),
-            padding=ft.Padding.symmetric(vertical=14, horizontal=24),
-            side=ft.BorderSide(2, "#2563eb"),
-        ),
-        width=320,
-        height=48,
-    )
-
-    # --- Tarjeta de login ---
-    login_card = ft.Container(
-        content=ft.Column(
-            [
-                campo_institucion,
-                ft.Container(height=16),
-                campo_usuario,
-                ft.Container(height=16),
-                campo_password,
-                ft.Container(height=24),
-                boton_iniciar,
-                ft.Container(height=12),
-                enlace_olvido,
-                ft.Container(height=20),
-                divisor,
-                ft.Container(height=20),
-                boton_registrar,
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=0,
-        ),
-        bgcolor="#ffffff",
-        width=400,
-        padding=ft.Padding.symmetric(vertical=40, horizontal=44),
-        border_radius=24,
-        shadow=ft.BoxShadow(
-            blur_radius=32,
-            spread_radius=-4,
-            color=ft.Colors.with_opacity(0.18, "black"),
-            offset=ft.Offset(0, 12),
-        ),
-        border=ft.Border.all(1, "#e2e8f0"),
-        animate_opacity=animacion_entrada,
-        animate_offset=animacion_entrada,
-        opacity=0,
-        offset=ft.Offset(0, 20),
-    )
-
-    # --- Footer ---
-    footer = ft.Text(
-        "© 2026 Sistema de Brigadas Escolares - Municipio Maracaibo",
-        size=12,
-        color="#94a3b8",
-        text_align=ft.TextAlign.CENTER,
-    )
-
-    # --- Botón de ayuda (esquina inferior derecha) ---
-    boton_ayuda = ft.Container(
-        content=ft.IconButton(
-            icon=ft.Icons.HELP_OUTLINED,
-            icon_color="#64748b",
-            icon_size=24,
-            style=ft.ButtonStyle(
-                bgcolor="#ffffff",
-                shape=ft.CircleBorder(),
-                elevation=2,
-                shadow_color=ft.Colors.with_opacity(0.15, "black"),
-            ),
-        ),
-        right=24,
-        bottom=24,
-    )
-
-    # --- Vista de login (pantalla inicial) ---
-    contenido_central = ft.Column(
-        [
-            header,
-            ft.Container(height=32),
-            login_card,
-            ft.Container(height=40),
-            footer,
-        ],
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-        spacing=0,
-    )
-    vista_login = ft.Stack(
-        [
-            contenido_central,
-            boton_ayuda,
+    # Stack: abajo el contenedor que alterna login/app; encima el overlay de intro (solo al inicio)
+    stack_principal = ft.Stack(
+        controls=[
+            contenedor_principal,
+            intro_overlay,
         ],
         expand=True,
-        alignment=ft.Alignment.CENTER,
     )
-
-    # --- Vista principal (views: HIPO — menú lateral + área de contenido) ---
-    vista_principal = ft.Container(expand=True, visible=False)
-
-    def cerrar_sesion():
-        vista_login.visible = True
-        vista_principal.visible = False
-        page.update()
-
-    vista_principal.content = build_views_content(page, on_logout=cerrar_sesion)
-
-    def ir_a_views(_):
-        vista_login.visible = False
-        vista_principal.visible = True
-        page.update()
-
-    boton_iniciar.on_click = ir_a_views
-
-    async def animar_entrada():
-        await asyncio.sleep(0.05)
-        login_card.opacity = 1
-        login_card.offset = ft.Offset(0, 0)
-        page.update()
-
-    # Contenedor principal: login, views e intro (intro encima al inicio)
-    page.add(
-        ft.Stack(
-            [
-                vista_login,
-                vista_principal,
-                intro_overlay,
-            ],
-            expand=True,
-        ),
-    )
+    page.add(stack_principal)
     dispersar_bloques()
+    page.update()
+    log("Ventana mostrada; cargando sidebar en segundo plano...")
+    # Sidebar se construye en segundo plano (shared_preferences puede bloquear si se hace antes de mostrar la ventana)
+    page.run_task(refresh_sidebar)
     page.run_task(animacion_inicio_automatica)
 
 
