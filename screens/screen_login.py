@@ -4,8 +4,9 @@ import asyncio
 import json
 import flet as ft
 
-from database.crud_usuario import verificar_login
+from database.crud_usuario import verificar_login_por_usuario_e_institucion, listar_instituciones, obtener_institucion_por_usuario
 from util_log import log
+
 from theme import (
     COLOR_TEXTO,
     COLOR_TEXTO_SEC,
@@ -114,35 +115,40 @@ class FloatingElement(ft.Container):
         self.floating_phase = not self.floating_phase
 
 
-def _input_con_titulo_y_glow(titulo: str, campo: ft.TextField, color_glow: str) -> ft.Column:
-    """Título arriba y debajo el input con glow (triple capa)."""
-    foco_de_luz = ft.Container(
-        width=10,
-        height=10,
-        bgcolor=ft.Colors.TRANSPARENT,
-        shadow=[
-            ft.BoxShadow(blur_radius=15, spread_radius=5, color=ft.Colors.with_opacity(0.9, color_glow), offset=ft.Offset(0, 0)),
-            ft.BoxShadow(blur_radius=30, spread_radius=10, color=ft.Colors.with_opacity(0.6, color_glow), offset=ft.Offset(0, 0)),
-            ft.BoxShadow(blur_radius=42, spread_radius=8, color=ft.Colors.with_opacity(0.3, color_glow), offset=ft.Offset(0, 0)),
-        ],
-    )
-    celda_glow = ft.Container(
-        content=foco_de_luz,
-        width=60,
-        height=50,
-        alignment=ft.Alignment(0, 0),
-        clip_behavior=ft.ClipBehavior.NONE,
-    )
-    input_container = ft.Container(
-        content=ft.Row(
+def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is_dropdown: bool = False) -> ft.Column:
+    """Título arriba y debajo el input con glow (triple capa). Si is_dropdown, mismo tamaño que los campos (altura 56)."""
+    if is_dropdown:
+        # Mismo tamaño que los TextField: contenedor 56px con el dropdown centrado
+        contenido_interno = ft.Container(content=campo, height=56, alignment=ft.Alignment(-1, 0), expand=True)
+    else:
+        foco_de_luz = ft.Container(
+            width=10,
+            height=10,
+            bgcolor=ft.Colors.TRANSPARENT,
+            shadow=[
+                ft.BoxShadow(blur_radius=15, spread_radius=5, color=ft.Colors.with_opacity(0.9, color_glow), offset=ft.Offset(0, 0)),
+                ft.BoxShadow(blur_radius=30, spread_radius=10, color=ft.Colors.with_opacity(0.6, color_glow), offset=ft.Offset(0, 0)),
+                ft.BoxShadow(blur_radius=42, spread_radius=8, color=ft.Colors.with_opacity(0.3, color_glow), offset=ft.Offset(0, 0)),
+            ],
+        )
+        celda_glow = ft.Container(
+            content=foco_de_luz,
+            width=60,
+            height=50,
+            alignment=ft.Alignment(0, 0),
+            clip_behavior=ft.ClipBehavior.NONE,
+        )
+        contenido_interno = ft.Row(
             [celda_glow, ft.Container(content=campo, expand=True)],
             spacing=0,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
-        ),
+        )
+    input_container = ft.Container(
+        content=contenido_interno,
         bgcolor="white",
         border_radius=16,
         border=ft.Border.all(1, "#E2E8F0"),
-        padding=ft.Padding.only(left=0, right=15),
+        padding=ft.Padding.only(left=0 if not is_dropdown else 15, right=15),
         height=56,
         clip_behavior=ft.ClipBehavior.HARD_EDGE,
         shadow=ft.BoxShadow(
@@ -162,15 +168,23 @@ def _input_con_titulo_y_glow(titulo: str, campo: ft.TextField, color_glow: str) 
 
 
 def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft.Control:
-    campo_institucion = ft.TextField(
-        hint_text="Nombre de la institución",
-        hint_style=ft.TextStyle(size=14, color="#94A3B8"),
+    # Lista de instituciones para el dropdown
+    try:
+        inst_opciones = [ft.dropdown.Option(str(i["idInstitucion"]), i["nombre_institucion"]) for i in listar_instituciones()]
+    except Exception:
+        inst_opciones = []
+
+    dropdown_institucion = ft.Dropdown(
+        hint_text="Seleccione su institución",
+        options=inst_opciones,
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color="#334155"),
-        cursor_color=COLOR_PRIMARIO,
+        hint_style=ft.TextStyle(size=14, color="#94A3B8"),
+        content_padding=ft.Padding(0, 16),
+        dense=True,
     )
     campo_usuario = ft.TextField(
-        hint_text="Ingrese su usuario",
+        hint_text="Usuario",
         hint_style=ft.TextStyle(size=14, color="#94A3B8"),
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color="#334155"),
@@ -185,6 +199,33 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
         text_style=ft.TextStyle(size=14, color="#334155"),
         cursor_color=COLOR_PRIMARIO,
     )
+    checkbox_profesor = ft.Checkbox(
+        label="Soy profesor",
+        value=False,
+        fill_color=COLOR_PRIMARIO,
+    )
+
+    # Diálogo de error para login (modal, siempre visible)
+    texto_error_login = ft.Text("", size=14)
+    dialogo_error_login = ft.AlertDialog(
+        modal=True,
+        title=ft.Row([ft.Icon(ft.Icons.ERROR_OUTLINE, color="#ef4444"), ft.Text("Error")]),
+        content=texto_error_login,
+        actions=[ft.TextButton("Entendido", on_click=lambda e: _cerrar_error_login())],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    def _cerrar_error_login():
+        dialogo_error_login.open = False
+        page.update()
+
+    def _mostrar_error_login(mensaje: str):
+        texto_error_login.value = mensaje
+        dialogo_error_login.open = True
+        page.update()
+
+    if dialogo_error_login not in (page.overlay or []):
+        page.overlay.append(dialogo_error_login)
 
     # Botón principal (se define antes de do_login para poder modificarlo)
     boton_iniciar_content = ft.Row(
@@ -210,17 +251,27 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
 
     async def do_login(e):
         log("1. do_login: inicio")
-        email = (campo_usuario.value or "").strip().lower()
+        inst_id = (dropdown_institucion.value or "").strip()
+        usuario_str = (campo_usuario.value or "").strip()
         password = (campo_password.value or "").strip()
+        es_profesor = checkbox_profesor.value or False
 
-        campo_usuario.error_text = "Campo requerido" if not email else None
-        campo_password.error_text = "Campo requerido" if not password else None
-        if not email or not password:
-            log("2. do_login: campos vacíos")
-            page.snack_bar = ft.SnackBar(ft.Text("Ingrese usuario y contraseña"))
-            page.snack_bar.open = True
+        # Validar campos (mostrar en modal)
+        if not inst_id:
+            _mostrar_error_login("Seleccione su institución.")
+            return
+        if not usuario_str:
+            campo_usuario.error_text = "Campo requerido"
+            _mostrar_error_login("Ingrese su usuario.")
             page.update()
             return
+        campo_usuario.error_text = None
+        if not password:
+            campo_password.error_text = "Campo requerido"
+            _mostrar_error_login("Ingrese su contraseña.")
+            page.update()
+            return
+        campo_password.error_text = None
 
         log("3. do_login: verificando...")
         boton_iniciar.disabled = True
@@ -228,30 +279,39 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
         page.update()
 
         try:
-            usuario = verificar_login(email, password)
+            usuario = verificar_login_por_usuario_e_institucion(
+                int(inst_id),
+                usuario_str,
+                password,
+                es_profesor=es_profesor,
+            )
             log(f"4. do_login: usuario={'sí' if usuario else 'no'}")
             if usuario:
+                inst = obtener_institucion_por_usuario(usuario["idUsuario"])
                 datos = {
                     "id": usuario["idUsuario"],
                     "nombre": usuario["nombre"],
                     "apellido": usuario["apellido"],
-                    "email": usuario["email"],
+                    "email": usuario.get("email"),
+                    "usuario": usuario.get("usuario"),
                     "rol": usuario["rol"],
+                    "institucion_nombre": inst.get("nombre_institucion", "Institución") if inst else "Institución",
+                    "institucion_logo_ruta": inst.get("logo_ruta") if inst else None,
                 }
                 await page.shared_preferences.set("usuario_actual", json.dumps(datos))
+                if not hasattr(page, "data"):
+                    page.data = {}
+                page.data["usuario_actual"] = datos
                 on_login_success()
                 page.update()
             else:
-                page.snack_bar = ft.SnackBar(ft.Text("Credenciales incorrectas"), bgcolor="red")
-                page.snack_bar.open = True
+                if es_profesor:
+                    _mostrar_error_login("No hay un profesor con ese usuario en esta institución, o la contraseña es incorrecta.")
+                else:
+                    _mostrar_error_login("No hay un directivo/coordinador con ese usuario en esta institución, o la contraseña es incorrecta.")
         except Exception as err:
             log(f"ERROR do_login: {err}")
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"Error de conexión: {err}"),
-                bgcolor="red",
-                duration=5000,
-            )
-            page.snack_bar.open = True
+            _mostrar_error_login(f"Error de conexión: {err}")
         finally:
             boton_iniciar.disabled = False
             boton_iniciar.content = boton_iniciar_content
@@ -291,12 +351,14 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
         content=ft.Column(
             [
                 ft.Container(height=10),
-                _input_con_titulo_y_glow("Institución Educativa", campo_institucion, GLOW_AZUL),
+                _input_con_titulo_y_glow("Institución", dropdown_institucion, GLOW_AZUL, is_dropdown=True),
                 ft.Container(height=20),
                 _input_con_titulo_y_glow("Usuario", campo_usuario, GLOW_MORADO),
                 ft.Container(height=20),
                 _input_con_titulo_y_glow("Contraseña", campo_password, GLOW_VERDE),
-                ft.Container(height=30),
+                ft.Container(height=12),
+                checkbox_profesor,
+                ft.Container(height=20),
                 boton_iniciar,
                 ft.Container(height=20),
                 ft.Container(

@@ -5,10 +5,11 @@ Requiere haber ejecutado database/migrate_brigada_campos.sql si usas descripcion
 from database.connection import get_connection
 
 
-def insertar_brigada(nombre, descripcion, coordinador, color_identificador, institucion_id=1):
+def insertar_brigada(nombre, descripcion, coordinador, color_identificador, institucion_id=1, profesor_id=None):
     """
     Inserta una nueva brigada.
     institucion_id: por defecto 1 (debe existir en Institucion_Educativa).
+    profesor_id: ID del profesor que crea/administra la brigada (NULL si la crea un admin sin asignar).
     Retorna el idBrigada creado o lanza excepción.
     """
     conn = get_connection()
@@ -20,10 +21,10 @@ def insertar_brigada(nombre, descripcion, coordinador, color_identificador, inst
             """
             INSERT INTO Brigada (
                 nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
-                Institucion_Educativa_idInstitucion
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+                Institucion_Educativa_idInstitucion, profesor_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
-            (nombre, area_accion, descripcion or None, coordinador or None, color_identificador or None, institucion_id),
+            (nombre, area_accion, descripcion or None, coordinador or None, color_identificador or None, institucion_id, profesor_id),
         )
         conn.commit()
         return cursor.lastrowid
@@ -146,5 +147,47 @@ def eliminar_brigada(id_brigada: int) -> str | None:
         return None
     except Exception as e:
         return str(e)
+    finally:
+        conn.close()
+
+
+def listar_brigadas_para_profesor(profesor_id: int, institucion_id: int):
+    """
+    Lista brigadas visibles para un profesor:
+    - Las suyas (profesor_id = su id)
+    - Las de otros profesores de la misma institución
+    Retorna lista de dict.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
+                   b.descripcion, b.coordinador, b.color_identificador, b.profesor_id,
+                   COUNT(u.idUsuario) AS num_miembros,
+                   p.nombre AS profesor_nombre, p.apellido AS profesor_apellido
+            FROM Brigada b
+            LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
+            LEFT JOIN Usuario p ON p.idUsuario = b.profesor_id
+            WHERE b.Institucion_Educativa_idInstitucion = %s
+              AND b.profesor_id IS NOT NULL
+            GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, 
+                     b.coordinador, b.color_identificador, b.profesor_id,
+                     p.nombre, p.apellido
+            ORDER BY 
+                CASE WHEN b.profesor_id = %s THEN 0 ELSE 1 END,
+                b.nombre_brigada
+            """,
+            (institucion_id, profesor_id),
+        )
+        rows = cursor.fetchall()
+        for r in rows:
+            r.setdefault("descripcion", None)
+            r.setdefault("coordinador", None)
+            r.setdefault("color_identificador", None)
+            r["num_miembros"] = r.get("num_miembros", 0) or 0
+            r["es_propia"] = r.get("profesor_id") == profesor_id
+        return rows
     finally:
         conn.close()

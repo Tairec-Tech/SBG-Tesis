@@ -5,6 +5,8 @@ Tema: tonos verdes (brigadas ambientales).
 """
 
 import asyncio
+import json
+import os
 import random
 import sys
 import flet as ft
@@ -27,6 +29,15 @@ from theme import (
 from screens import screen_login, screen_register, screen_recovery
 from screens import screen_dashboard
 from components import build_sidebar
+
+# Cortina de transición (paleta verde)
+TRANSITION_VERDE = COLOR_PRIMARIO
+TRANSITION_TEXT = "#FFFFFF"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGOS_DIR = os.path.join(BASE_DIR, "uploads", "logos")
+
+# Abreviaturas para bienvenida
+ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 
 
 async def main(page: ft.Page):
@@ -130,14 +141,107 @@ async def main(page: ft.Page):
     # Un solo contenedor que cambia de contenido: login/registro/recuperar O app (sidebar+contenido)
     contenedor_principal = ft.Container(expand=True, alignment=ft.Alignment.CENTER)
 
+    # ----- Cortina de transición Login -> Dashboard (verde) -----
+    icon_success = ft.Icon(
+        ft.Icons.CHECK_CIRCLE_ROUNDED,
+        size=100,
+        color=TRANSITION_TEXT,
+    )
+    icon_success_container = ft.Container(
+        content=icon_success,
+        scale=0,
+        animate_scale=ft.Animation(400, ft.AnimationCurve.EASE_OUT_BACK),
+    )
+    text_welcome = ft.Text(
+        "¡Bienvenido!",
+        size=18,
+        weight="bold",
+        color=TRANSITION_TEXT,
+        opacity=0,
+        animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
+        text_align=ft.TextAlign.CENTER,
+    )
+    transition_overlay = ft.Container(
+        expand=True,
+        bgcolor=TRANSITION_VERDE,
+        opacity=0,
+        visible=False,
+        animate_opacity=ft.Animation(500, ft.AnimationCurve.EASE_IN_OUT),
+        alignment=ft.Alignment.CENTER,
+        content=ft.Column(
+            [
+                icon_success_container,
+                ft.Container(height=20),
+                text_welcome,
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.CENTER,
+        ),
+    )
+
+    async def animar_entrada_dashboard():
+        """Secuencia: cortina verde -> logo o icono (pop) -> texto bienvenida con abreviatura e institución -> cambio a app -> desvanecer."""
+        # Obtener datos del usuario para personalizar bienvenida
+        try:
+            data_str = await page.shared_preferences.get("usuario_actual")
+            data = json.loads(data_str) if data_str else {}
+        except Exception:
+            data = {}
+        nombre = f"{data.get('nombre', '')} {data.get('apellido', '')}".strip() or "Usuario"
+        rol = data.get("rol", "")
+        abrev = ABREV_ROL.get(rol, rol)
+        inst_nombre = data.get("institucion_nombre", "Institución")
+        text_welcome.value = f"Bienvenido {abrev} {nombre} a la coordinación de brigadas de la institución {inst_nombre}"
+
+        # Mostrar logo de la institución (circular) si existe, si no el icono de check
+        logo_ruta = data.get("institucion_logo_ruta")
+        logo_path = os.path.join(LOGOS_DIR, logo_ruta) if logo_ruta else None
+        if logo_path and os.path.isfile(logo_path):
+            icon_success_container.content = ft.Container(
+                content=ft.Image(src=logo_path, width=100, height=100, fit=ft.ImageFit.COVER),
+                width=100,
+                height=100,
+                border_radius=50,
+                clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                border=ft.Border.all(3, "white"),
+            )
+        else:
+            icon_success_container.content = ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=100, color=TRANSITION_TEXT)
+
+        transition_overlay.visible = True
+        transition_overlay.opacity = 1
+        page.update()
+        await asyncio.sleep(0.5)
+
+        icon_success_container.scale = 1
+        text_welcome.opacity = 1
+        page.update()
+
+        await asyncio.sleep(1.2)
+
+        contenedor_principal.content = vista_principal
+        page.update()
+
+        icon_success_container.scale = 0
+        text_welcome.opacity = 0
+        page.update()
+        await asyncio.sleep(0.2)
+
+        transition_overlay.opacity = 0
+        page.update()
+        await asyncio.sleep(0.5)
+        transition_overlay.visible = False
+        page.update()
+
     async def cerrar_sesion():
         await page.shared_preferences.remove("usuario_actual")
+        if getattr(page, "data", None) and "usuario_actual" in page.data:
+            del page.data["usuario_actual"]
         contenedor_principal.content = build_login_view()
         page.update()
 
     def ir_a_app():
-        contenedor_principal.content = vista_principal
-        page.update()
+        page.run_task(animar_entrada_dashboard)
 
     def ir_a_registro():
         contenedor_principal.content = screen_register.build(page, on_back_to_login=volver_a_login)
@@ -202,11 +306,12 @@ async def main(page: ft.Page):
         intro_overlay.visible = False
         page.update()
 
-    # Stack: abajo el contenedor que alterna login/app; encima el overlay de intro (solo al inicio)
+    # Stack: contenedor principal, intro, cortina de transición (encima de todo al hacer login)
     stack_principal = ft.Stack(
         controls=[
             contenedor_principal,
             intro_overlay,
+            transition_overlay,
         ],
         expand=True,
     )

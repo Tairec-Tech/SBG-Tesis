@@ -5,7 +5,10 @@ Formularios CRUD del SGB — brigadas ambientales (tonos verdes).
 import flet as ft
 
 from database.crud_brigada import insertar_brigada, actualizar_brigada, eliminar_brigada, obtener_brigada, listar_brigadas
-from database.crud_usuario import crear_usuario, email_ya_existe, listar_brigadistas, actualizar_usuario, eliminar_usuario, obtener_usuario
+from database.crud_usuario import (
+    crear_usuario, email_ya_existe, listar_brigadistas, actualizar_usuario, 
+    eliminar_usuario, obtener_usuario, es_admin, es_profesor, listar_profesores_institucion
+)
 from theme import (
     COLOR_PRIMARIO,
     COLOR_PRIMARIO_CLARO,
@@ -392,8 +395,16 @@ def abrir_form_usuario_eliminar(page: ft.Page):
 # Figma "Nueva Brigada": Nombre, Descripción, Coordinador, Color Identificador; Cancelar / Crear
 
 
-def abrir_form_brigada_registrar(page: ft.Page, on_success=None):
-    """Formulario 'Nueva Brigada': contenedor compacto. Si on_success se pasa, se llama tras crear correctamente."""
+def abrir_form_brigada_registrar(page: ft.Page, on_success=None, usuario_actual=None):
+    """
+    Formulario 'Nueva Brigada': contenedor compacto.
+    - Si es profesor: asigna automáticamente profesor_id
+    - Si es admin: muestra selector de profesor (opcional)
+    """
+    usuario_actual = usuario_actual or {}
+    rol_usuario = usuario_actual.get("rol", "")
+    id_usuario = usuario_actual.get("id")
+    
     pad = PADDING_NUEVA_BRIGADA
     nombre = ft.TextField(
         hint_text="Nombre de la brigada",
@@ -419,6 +430,26 @@ def abrir_form_brigada_registrar(page: ft.Page, on_success=None):
         expand=True,
         **_CAMPO_BASE,
     )
+    
+    # Selector de profesor (solo para admins)
+    selector_profesor = None
+    if es_admin(rol_usuario):
+        try:
+            profesores = listar_profesores_institucion(1)  # TODO: obtener institucion_id del usuario
+            if profesores:
+                selector_profesor = ft.Dropdown(
+                    hint_text="Seleccione un profesor (opcional)",
+                    options=[ft.dropdown.Option(key=str(p["idUsuario"]), text=f"{p['nombre']} {p['apellido']}") for p in profesores],
+                    border_color=COLOR_BORDE,
+                    focused_border_color=COLOR_PRIMARIO,
+                    text_size=14,
+                    color=COLOR_TEXTO,
+                    content_padding=ft.Padding(12, 14),
+                    border_radius=RADIO,
+                    dense=True,
+                )
+        except Exception:
+            pass
 
     # Color identificador: swatches más anchos (80x48), 2 filas x 4 columnas
     colores_figma = [
@@ -455,15 +486,32 @@ def abrir_form_brigada_registrar(page: ft.Page, on_success=None):
     grid_colores = ft.Column([fila1, ft.Container(height=ESP_SWATCH), fila2], spacing=0)
 
     def on_crear(_):
+        # Validar nombre obligatorio
+        if not nombre.value or not nombre.value.strip():
+            page.snack_bar = ft.SnackBar(ft.Text("El nombre de la brigada es obligatorio"), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+        
+        # Determinar profesor_id
+        profesor_id = None
+        if es_profesor(rol_usuario) and id_usuario:
+            # Profesor crea su propia brigada
+            profesor_id = id_usuario
+        elif es_admin(rol_usuario) and selector_profesor and selector_profesor.value:
+            # Admin asigna a un profesor
+            profesor_id = int(selector_profesor.value)
+        
         try:
             insertar_brigada(
-                nombre=nombre.value or "",
+                nombre=nombre.value.strip(),
                 descripcion=descripcion.value or None,
                 coordinador=coordinador.value or None,
                 color_identificador=color_seleccionado["value"],
+                profesor_id=profesor_id,
             )
             _cerrar_dialogo(page)
-            page.snack_bar = ft.SnackBar(ft.Text("Brigada creada correctamente"))
+            page.snack_bar = ft.SnackBar(ft.Text("¡Brigada creada correctamente!"), bgcolor="#22c55e")
             page.snack_bar.open = True
             if on_success:
                 on_success()
@@ -471,7 +519,7 @@ def abrir_form_brigada_registrar(page: ft.Page, on_success=None):
             msg = str(ex)
             if "Unknown column" in msg or "descripcion" in msg:
                 msg = "Ejecuta antes: database/migrate_brigada_campos.sql"
-            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {msg}"))
+            page.snack_bar = ft.SnackBar(ft.Text(f"Error al crear brigada: {msg}"), bgcolor="#ef4444")
             page.snack_bar.open = True
         page.update()
 
@@ -494,19 +542,25 @@ def abrir_form_brigada_registrar(page: ft.Page, on_success=None):
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    inner_column = ft.Column(
-        [
-            fila_titulo,
-            ft.Container(height=16),
-            _campo_con_titulo("Nombre de la Brigada", nombre),
-            _campo_con_titulo("Descripción", descripcion),
-            _campo_con_titulo("Coordinador", coordinador),
-            ft.Text("Color Identificador", size=14, weight="w500", color=COLOR_TEXTO),
-            ft.Container(height=8),
-            grid_colores,
-        ],
-        spacing=0,
-    )
+    campos_formulario = [
+        fila_titulo,
+        ft.Container(height=16),
+        _campo_con_titulo("Nombre de la Brigada *", nombre),
+        _campo_con_titulo("Descripción", descripcion),
+        _campo_con_titulo("Coordinador", coordinador),
+    ]
+    
+    # Agregar selector de profesor solo si es admin y hay profesores disponibles
+    if selector_profesor:
+        campos_formulario.append(_campo_con_titulo("Asignar a Profesor (opcional)", selector_profesor))
+    
+    campos_formulario.extend([
+        ft.Text("Color Identificador", size=14, weight="w500", color=COLOR_TEXTO),
+        ft.Container(height=8),
+        grid_colores,
+    ])
+    
+    inner_column = ft.Column(campos_formulario, spacing=0)
     contenido = ft.Container(
         content=inner_column,
         padding=pad,
@@ -591,7 +645,7 @@ def abrir_form_brigada_modificar(page: ft.Page, brigada=None, on_success=None):
             return
         nom = (nombre.value or "").strip()
         if not nom:
-            page.snack_bar = ft.SnackBar(ft.Text("El nombre es obligatorio"))
+            page.snack_bar = ft.SnackBar(ft.Text("El nombre es obligatorio"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
@@ -604,12 +658,12 @@ def abrir_form_brigada_modificar(page: ft.Page, brigada=None, on_success=None):
                 coordinador=(coordinador.value or "").strip() or None,
             )
             _cerrar_dialogo(page)
-            page.snack_bar = ft.SnackBar(ft.Text("Brigada actualizada correctamente"))
+            page.snack_bar = ft.SnackBar(ft.Text("¡Brigada actualizada correctamente!"), bgcolor="#22c55e")
             page.snack_bar.open = True
             if on_success:
                 on_success()
         except Exception as ex:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"))
+            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), bgcolor="#ef4444")
             page.snack_bar.open = True
         page.update()
 
@@ -677,7 +731,7 @@ def abrir_form_brigada_eliminar(page: ft.Page, brigada=None, on_success=None):
             page.update()
             return
         _cerrar_dialogo(page)
-        page.snack_bar = ft.SnackBar(ft.Text("Brigada eliminada correctamente"))
+        page.snack_bar = ft.SnackBar(ft.Text("Brigada eliminada correctamente"), bgcolor="#22c55e")
         page.snack_bar.open = True
         if on_success:
             on_success()
@@ -695,12 +749,160 @@ def abrir_form_brigada_eliminar(page: ft.Page, brigada=None, on_success=None):
     _abrir_dialogo(page, dialogo)
 
 
+def abrir_form_brigada_agregar_miembros(page: ft.Page, brigada=None, on_success=None):
+    """Abre el diálogo para agregar miembros a una brigada. Lista usuarios de otras brigadas y permite asignarlos a esta."""
+    if not brigada:
+        page.snack_bar = ft.SnackBar(ft.Text("Error: no se especificó la brigada"))
+        page.snack_bar.open = True
+        page.update()
+        return
+    id_brigada = brigada.get("idBrigada")
+    nombre_brigada = brigada.get("nombre_brigada") or f"Brigada {id_brigada}"
+    try:
+        todos = listar_brigadistas()
+    except Exception:
+        todos = []
+    miembros_actuales = [u for u in todos if (u.get("Brigada_idBrigada") or 0) == id_brigada]
+    disponibles = [u for u in todos if (u.get("Brigada_idBrigada") or 0) != id_brigada]
+    opciones_dropdown = [
+        ft.dropdown.Option(
+            str(u["idUsuario"]),
+            f"{u.get('nombre', '')} {u.get('apellido', '')} — {u.get('nombre_brigada') or 'Sin brigada'}",
+        )
+        for u in disponibles
+    ]
+    selector_usuario = ft.Dropdown(
+        hint_text="Seleccione un usuario para agregar a esta brigada",
+        options=opciones_dropdown,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        border_radius=RADIO,
+        text_size=14,
+        color=COLOR_TEXTO,
+        content_padding=_CAMPO_PADDING,
+    )
+
+    def on_agregar(_):
+        val = selector_usuario.value
+        if not val:
+            page.snack_bar = ft.SnackBar(ft.Text("Seleccione un usuario"), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+        id_usuario = int(val)
+        usuario = obtener_usuario(id_usuario)
+        if not usuario:
+            page.snack_bar = ft.SnackBar(ft.Text("Usuario no encontrado"), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+        try:
+            actualizar_usuario(
+                id_usuario,
+                nombre=usuario.get("nombre") or "",
+                apellido=usuario.get("apellido") or "",
+                email=usuario.get("email") or "",
+                rol=usuario.get("rol") or "Brigadista",
+                brigada_id=id_brigada,
+            )
+            _cerrar_dialogo(page)
+            page.snack_bar = ft.SnackBar(ft.Text("¡Miembro agregado a la brigada!"), bgcolor="#22c55e")
+            page.snack_bar.open = True
+            if on_success:
+                on_success()
+        except Exception as ex:
+            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), bgcolor="#ef4444")
+            page.snack_bar.open = True
+        page.update()
+
+    lista_actuales = ft.Column(
+        [
+            ft.Text("Miembros actuales", size=14, weight="w600", color=COLOR_TEXTO),
+            ft.Container(height=8),
+            *(
+                [
+                    ft.Container(
+                        content=ft.Text(f"• {u.get('nombre', '')} {u.get('apellido', '')} ({u.get('email', '')})", size=13, color=COLOR_TEXTO_SEC),
+                        padding=ft.Padding(0, 4),
+                    )
+                    for u in miembros_actuales
+                ]
+                if miembros_actuales
+                else [ft.Text("Ninguno aún.", size=13, color=COLOR_TEXTO_SEC)]
+            ),
+        ],
+        spacing=0,
+        horizontal_alignment=ft.CrossAxisAlignment.START,
+    )
+    bloques_agregar = [
+        ft.Text("Usuario a agregar", size=14, weight="w500", color=COLOR_TEXTO),
+        ft.Container(height=8),
+        selector_usuario,
+        ft.Container(height=16),
+        ft.Row(
+            [
+                ft.FilledButton(
+                    "Agregar a esta brigada",
+                    style=ft.ButtonStyle(bgcolor=COLOR_PRIMARIO, shape=ft.RoundedRectangleBorder(radius=RADIO)),
+                    on_click=on_agregar,
+                ),
+            ],
+            alignment=ft.MainAxisAlignment.END,
+        ),
+    ]
+    if not disponibles:
+        bloques_agregar = [
+            ft.Text("No hay usuarios de otras brigadas para agregar. Cree brigadistas en otras brigadas o regístrelos desde «Brigadistas».", size=13, color=COLOR_TEXTO_SEC),
+        ]
+    contenido = ft.Column(
+        [
+            ft.Text(f"Agregar miembros a «{nombre_brigada}». Los usuarios de otras brigadas pueden reasignarse aquí.", size=13, color=COLOR_TEXTO_SEC),
+            ft.Container(height=16),
+            lista_actuales,
+            ft.Container(height=20),
+            *bloques_agregar,
+        ],
+        spacing=0,
+    )
+    dialogo = ft.AlertDialog(
+        modal=True,
+        bgcolor=COLOR_CARD,
+        title=ft.Text("Agregar miembros", size=18, weight="w600", color=COLOR_TEXTO),
+        content=ft.Container(content=contenido, width=440, bgcolor=COLOR_CARD),
+        actions=[
+            ft.TextButton(
+                content=ft.Text("Cerrar", color=COLOR_CANCELAR, weight=ft.FontWeight.W_500),
+                style=ft.ButtonStyle(color=COLOR_CANCELAR),
+                on_click=lambda e: _cerrar_dialogo(e.page),
+            ),
+        ],
+    )
+    _abrir_dialogo(page, dialogo)
+
+
 # ---------- Nuevo Brigadista (Figma) ----------
 def abrir_form_brigadista_registrar(page: ft.Page, on_success=None):
     """Formulario 'Nuevo Brigadista': conectado a BD (Usuario + Brigada)."""
     nombre = ft.TextField(hint_text="Nombre completo", **_CAMPO_BASE)
     grado = ft.TextField(hint_text="Grado (opcional)", **_CAMPO_BASE)
     seccion = ft.TextField(hint_text="Sección (opcional)", **_CAMPO_BASE)
+    
+    # Selector de rol de brigadista
+    rol_brigadista = ft.Dropdown(
+        hint_text="Seleccione el rol",
+        options=[
+            ft.dropdown.Option("Brigadista Jefe", "Jefe de Brigada"),
+            ft.dropdown.Option("Brigadista", "Brigadista"),
+        ],
+        value="Brigadista",  # Por defecto es brigadista normal
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        border_radius=RADIO,
+        text_size=14,
+        color=COLOR_TEXTO,
+        content_padding=_CAMPO_PADDING,
+    )
+    
     brigadas_opciones = []
     try:
         for b in listar_brigadas():
@@ -752,6 +954,7 @@ def abrir_form_brigadista_registrar(page: ft.Page, on_success=None):
                 spacing=0,
             ),
             ft.Container(height=16),
+            _campo_con_titulo("Rol en la Brigada", rol_brigadista),
             _campo_con_titulo("Brigada", brigada),
             _campo_con_titulo("Teléfono", telefono),
             _campo_con_titulo("Correo Electrónico", correo),
@@ -766,27 +969,27 @@ def abrir_form_brigadista_registrar(page: ft.Page, on_success=None):
         pwd = (contrasena.value or "").strip()
         brigada_id_val = brigada.value
         if not nom:
-            page.snack_bar = ft.SnackBar(ft.Text("Nombre completo es obligatorio"))
+            page.snack_bar = ft.SnackBar(ft.Text("Nombre completo es obligatorio"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
         if not email_val:
-            page.snack_bar = ft.SnackBar(ft.Text("Correo electrónico es obligatorio"))
+            page.snack_bar = ft.SnackBar(ft.Text("Correo electrónico es obligatorio"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
         if not pwd or len(pwd) < 6:
-            page.snack_bar = ft.SnackBar(ft.Text("La contraseña debe tener al menos 6 caracteres"))
+            page.snack_bar = ft.SnackBar(ft.Text("La contraseña debe tener al menos 6 caracteres"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
         if not brigada_id_val:
-            page.snack_bar = ft.SnackBar(ft.Text("Seleccione una brigada"))
+            page.snack_bar = ft.SnackBar(ft.Text("Seleccione una brigada"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
         if email_ya_existe(email_val):
-            page.snack_bar = ft.SnackBar(ft.Text("Ese correo ya está registrado"))
+            page.snack_bar = ft.SnackBar(ft.Text("Ese correo ya está registrado"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
@@ -794,21 +997,23 @@ def abrir_form_brigadista_registrar(page: ft.Page, on_success=None):
             partes = nom.split(None, 1)
             nombre_parte = partes[0] if partes else "Usuario"
             apellido_parte = partes[1] if len(partes) > 1 else ""
+            # Usar el rol seleccionado (Brigadista Jefe o Brigadista)
+            rol_seleccionado = rol_brigadista.value or "Brigadista"
             crear_usuario(
                 nombre=nombre_parte,
                 apellido=apellido_parte,
                 email=email_val,
                 contrasena_plana=pwd,
-                rol="Brigadista",
+                rol=rol_seleccionado,
                 brigada_id=int(brigada_id_val),
             )
             _cerrar_dialogo(page)
-            page.snack_bar = ft.SnackBar(ft.Text("Brigadista registrado correctamente"))
+            page.snack_bar = ft.SnackBar(ft.Text("¡Brigadista registrado correctamente!"), bgcolor="#22c55e")
             page.snack_bar.open = True
             if on_success:
                 on_success()
         except Exception as ex:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"))
+            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), bgcolor="#ef4444")
             page.snack_bar.open = True
         page.update()
 
@@ -845,7 +1050,13 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
     rol = ft.Dropdown(
         label="Rol",
         value=brigadista.get("rol") or "Brigadista",
-        options=[ft.dropdown.Option("Brigadista"), ft.dropdown.Option("Directivo"), ft.dropdown.Option("Coordinador")],
+        options=[
+            ft.dropdown.Option("Brigadista Jefe", "Jefe de Brigada"),
+            ft.dropdown.Option("Brigadista", "Brigadista"),
+            ft.dropdown.Option("Profesor", "Profesor"),
+            ft.dropdown.Option("Coordinador", "Coordinador"),
+            ft.dropdown.Option("Directivo", "Directivo"),
+        ],
         **_CAMPO_BASE,
     )
     brigadas_opciones = []
@@ -866,18 +1077,18 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
         ape = (apellido.value or "").strip()
         email_val = (correo.value or "").strip().lower()
         if not nom:
-            page.snack_bar = ft.SnackBar(ft.Text("El nombre es obligatorio"))
+            page.snack_bar = ft.SnackBar(ft.Text("El nombre es obligatorio"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
         if not email_val:
-            page.snack_bar = ft.SnackBar(ft.Text("El correo es obligatorio"))
+            page.snack_bar = ft.SnackBar(ft.Text("El correo es obligatorio"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
         brigada_id_val = brigada.value
         if not brigada_id_val:
-            page.snack_bar = ft.SnackBar(ft.Text("Seleccione una brigada"))
+            page.snack_bar = ft.SnackBar(ft.Text("Seleccione una brigada"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
@@ -891,12 +1102,12 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
                 brigada_id=int(brigada_id_val),
             )
             _cerrar_dialogo(page)
-            page.snack_bar = ft.SnackBar(ft.Text("Brigadista actualizado correctamente"))
+            page.snack_bar = ft.SnackBar(ft.Text("¡Brigadista actualizado correctamente!"), bgcolor="#22c55e")
             page.snack_bar.open = True
             if on_success:
                 on_success()
         except Exception as ex:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"))
+            page.snack_bar = ft.SnackBar(ft.Text(f"Error: {ex}"), bgcolor="#ef4444")
             page.snack_bar.open = True
         page.update()
 
@@ -926,7 +1137,7 @@ def abrir_form_brigadista_eliminar(page: ft.Page, brigadista=None, on_success=No
             page.update()
             return
         _cerrar_dialogo(page)
-        page.snack_bar = ft.SnackBar(ft.Text("Brigadista eliminado correctamente"))
+        page.snack_bar = ft.SnackBar(ft.Text("Brigadista eliminado correctamente"), bgcolor="#22c55e")
         page.snack_bar.open = True
         if on_success:
             on_success()
