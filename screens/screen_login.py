@@ -299,7 +299,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
                     "institucion_logo_ruta": inst.get("logo_ruta") if inst else None,
                 }
                 await page.shared_preferences.set("usuario_actual", json.dumps(datos))
-                if not hasattr(page, "data"):
+                if getattr(page, "data", None) is None:
                     page.data = {}
                 page.data["usuario_actual"] = datos
                 on_login_success()
