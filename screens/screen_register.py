@@ -6,6 +6,12 @@ import re
 import shutil
 import flet as ft
 
+try:
+    from tkinter import Tk, filedialog
+    _TK_AVAILABLE = True
+except Exception:
+    _TK_AVAILABLE = False
+
 from database.crud_usuario import (
     crear_institucion,
     crear_brigada,
@@ -16,6 +22,10 @@ from database.crud_usuario import (
     listar_brigadas_por_institucion,
     actualizar_logo_institucion,
 )
+try:
+    from mysql.connector import errors as mysql_errors
+except ImportError:
+    mysql_errors = None
 
 # Carpeta para logos de instituciones (relativa al proyecto)
 DIR_LOGOS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads", "logos")
@@ -220,26 +230,33 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     )
 
     # Logo de institución (solo para admin)
-    logo_seleccionado = {"path": None}
-    texto_logo = ft.Text("Ningún archivo seleccionado", size=13, color=COLOR_TEXTO_SEC)
-
-    def on_logo_picked(e: ft.FilePickerResultEvent):
-        if e.files and len(e.files) > 0:
-            logo_seleccionado["path"] = e.files[0].path
-            texto_logo.value = e.files[0].name
-        else:
-            logo_seleccionado["path"] = None
-            texto_logo.value = "Ningún archivo seleccionado"
-        page.update()
-
-    file_picker_logo = ft.FilePicker(on_result=on_logo_picked)
-    if file_picker_logo not in (page.overlay or []):
-        page.overlay.append(file_picker_logo)
-
-    boton_subir_logo = ft.OutlinedButton(
-        content=ft.Row([ft.Icon(ft.Icons.UPLOAD_FILE, size=20), ft.Text("Subir logo de la institución")], spacing=8),
-        on_click=lambda e: file_picker_logo.pick_files(allowed_extensions=["png", "jpg", "jpeg"], dialog_title="Seleccionar logo"),
+    campo_ruta_logo = ft.TextField(
+        hint_text="Ruta del logo (opcional)",
+        border=ft.InputBorder.NONE,
+        text_style=ft.TextStyle(size=14, color="#334155"),
+        cursor_color=COLOR_PRIMARIO,
+        expand=True,
     )
+
+    def abrir_selector_archivo(_):
+        """Abre el diálogo nativo de Windows para elegir una imagen (tkinter)."""
+        if not _TK_AVAILABLE:
+            _mostrar_error("El selector de archivos no está disponible en este entorno.")
+            return
+        try:
+            root = Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            ruta = filedialog.askopenfilename(
+                title="Seleccionar logo de la institución",
+                filetypes=[("Imágenes (PNG, JPG)", "*.png *.jpg *.jpeg"), ("Todos", "*.*")],
+            )
+            root.destroy()
+            if ruta:
+                campo_ruta_logo.value = ruta
+                page.update()
+        except Exception as ex:
+            _mostrar_error(f"No se pudo abrir el selector: {ex}")
 
     nombre_completo = ft.TextField(
         hint_text="Nombre del Director/Enlace",
@@ -362,64 +379,171 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         page.update()
         await asyncio.sleep(0.5)
 
-        # ---------- Registro como PROFESOR ----------
-        if tipo_cuenta["value"] == "profesor":
-            if not dropdown_inst.value:
-                _mostrar_error("Seleccione la institución donde trabaja.")
+        def _es_error_conexion(err):
+            s = str(err).lower()
+            return (
+                "connect" in s or "mysql" in s or "2003" in s or "10061" in s
+                or (mysql_errors and isinstance(err, mysql_errors.DatabaseError))
+            )
+
+        try:
+            # ---------- Registro como PROFESOR ----------
+            if tipo_cuenta["value"] == "profesor":
+                if not dropdown_inst.value:
+                    _mostrar_error("Seleccione la institución donde trabaja.")
+                    _reset_btn()
+                    return
+                if not nombre_prof.value or not nombre_prof.value.strip():
+                    _mostrar_error("Ingrese su nombre completo.")
+                    _reset_btn()
+                    return
+                if not usuario_prof.value or not usuario_prof.value.strip():
+                    _mostrar_error("Ingrese un usuario para iniciar sesión.")
+                    _reset_btn()
+                    return
+                if usuario_ya_existe(usuario_prof.value.strip().lower()):
+                    _mostrar_error("Ese nombre de usuario ya está en uso. Elija otro.")
+                    _reset_btn()
+                    return
+                if not correo_prof.value or not correo_prof.value.strip():
+                    _mostrar_error("Ingrese su correo electrónico.")
+                    _reset_btn()
+                    return
+                if not _es_email_valido(correo_prof.value.strip()):
+                    _mostrar_error("El correo debe tener un formato válido (ejemplo: nombre@dominio.com).")
+                    _reset_btn()
+                    return
+                if email_ya_existe(correo_prof.value.strip().lower()):
+                    _mostrar_error("Ese correo ya está registrado. Use otro o inicie sesión.")
+                    _reset_btn()
+                    return
+                if not contrasena_prof.value or len(contrasena_prof.value) < 6:
+                    _mostrar_error("La contraseña debe tener al menos 6 caracteres.")
+                    _reset_btn()
+                    return
+                if contrasena_prof.value != confirmar_prof.value:
+                    _mostrar_error("Las contraseñas no coinciden.")
+                    _reset_btn()
+                    return
+                try:
+                    id_inst = int(dropdown_inst.value)
+                    brigadas = listar_brigadas_por_institucion(id_inst)
+                    if not brigadas:
+                        _mostrar_error("La institución seleccionada no tiene brigadas. Contacte al administrador.")
+                        _reset_btn()
+                        return
+                    id_brigada = brigadas[0]["idBrigada"]
+                    partes = nombre_prof.value.strip().split(None, 1)
+                    nombre_p = partes[0] if partes else "Usuario"
+                    apellido_p = partes[1] if len(partes) > 1 else ""
+                    crear_usuario(
+                        nombre=nombre_p,
+                        apellido=apellido_p,
+                        email=correo_prof.value.strip().lower(),
+                        contrasena_plana=contrasena_prof.value,
+                        rol="Profesor",
+                        brigada_id=id_brigada,
+                        usuario=usuario_prof.value.strip().lower(),
+                    )
+                    page.snack_bar = ft.SnackBar(ft.Text("¡Registro exitoso! Ahora inicie sesión."), bgcolor="#22c55e")
+                    page.snack_bar.open = True
+                    on_back_to_login()
+                except Exception as err:
+                    _mostrar_error(f"Error al registrar: {err}")
+                _reset_btn()
+                page.update()
+                return
+
+            # ---------- Registro como DIRECTIVO / COORDINADOR ----------
+            # Validar campos obligatorios
+            if not nom_inst.value or not nom_inst.value.strip():
+                _mostrar_error("Ingrese el nombre de la institución.")
                 _reset_btn()
                 return
-            if not nombre_prof.value or not nombre_prof.value.strip():
-                _mostrar_error("Ingrese su nombre completo.")
+
+            if not nombre_completo.value or not nombre_completo.value.strip():
+                _mostrar_error("Ingrese el nombre completo del administrador.")
                 _reset_btn()
                 return
-            if not usuario_prof.value or not usuario_prof.value.strip():
-                _mostrar_error("Ingrese un usuario para iniciar sesión.")
+
+            if not correo.value or not correo.value.strip():
+                _mostrar_error("Ingrese el correo electrónico.")
                 _reset_btn()
                 return
-            if usuario_ya_existe(usuario_prof.value.strip().lower()):
-                _mostrar_error("Ese nombre de usuario ya está en uso. Elija otro.")
-                _reset_btn()
-                return
-            if not correo_prof.value or not correo_prof.value.strip():
-                _mostrar_error("Ingrese su correo electrónico.")
-                _reset_btn()
-                return
-            if not _es_email_valido(correo_prof.value.strip()):
+
+            # Validar formato de email (mostrar en diálogo para que siempre se vea)
+            if not _es_email_valido(correo.value.strip()):
                 _mostrar_error("El correo debe tener un formato válido (ejemplo: nombre@dominio.com).")
                 _reset_btn()
                 return
-            if email_ya_existe(correo_prof.value.strip().lower()):
-                _mostrar_error("Ese correo ya está registrado. Use otro o inicie sesión.")
+
+            if not contrasena.value or not contrasena.value.strip():
+                _mostrar_error("Ingrese una contraseña.")
                 _reset_btn()
                 return
-            if not contrasena_prof.value or len(contrasena_prof.value) < 6:
-                _mostrar_error("La contraseña debe tener al menos 6 caracteres.")
-                _reset_btn()
-                return
-            if contrasena_prof.value != confirmar_prof.value:
+
+            if contrasena.value != confirmar.value:
                 _mostrar_error("Las contraseñas no coinciden.")
                 _reset_btn()
                 return
+
+            if len(contrasena.value) < 6:
+                _mostrar_error("La contraseña debe tener al menos 6 caracteres.")
+                _reset_btn()
+                return
+
+            if email_ya_existe(correo.value.strip().lower()):
+                _mostrar_error("El correo ya está registrado. Use otro o inicie sesión.")
+                _reset_btn()
+                return
+
+            usuario_str = (usuario.value or "").strip()
+            if not usuario_str:
+                _mostrar_error("Ingrese un usuario para iniciar sesión.")
+                _reset_btn()
+                return
+            if usuario_ya_existe(usuario_str.lower()):
+                _mostrar_error("Ese nombre de usuario ya está en uso. Elija otro.")
+                _reset_btn()
+                return
+
             try:
-                id_inst = int(dropdown_inst.value)
-                brigadas = listar_brigadas_por_institucion(id_inst)
-                if not brigadas:
-                    _mostrar_error("La institución seleccionada no tiene brigadas. Contacte al administrador.")
-                    _reset_btn()
-                    return
-                id_brigada = brigadas[0]["idBrigada"]
-                partes = nombre_prof.value.strip().split(None, 1)
-                nombre_p = partes[0] if partes else "Usuario"
-                apellido_p = partes[1] if len(partes) > 1 else ""
-                crear_usuario(
-                    nombre=nombre_p,
-                    apellido=apellido_p,
-                    email=correo_prof.value.strip().lower(),
-                    contrasena_plana=contrasena_prof.value,
-                    rol="Profesor",
-                    brigada_id=id_brigada,
-                    usuario=usuario_prof.value.strip().lower(),
+                id_inst = crear_institucion(
+                    nombre=nom_inst.value.strip(),
+                    direccion=(direccion.value or "").strip(),
+                    telefono=(tel_inst.value or "").strip(),
                 )
+                id_brigada = crear_brigada(
+                    nombre_brigada=f"Brigada {nom_inst.value.strip()}",
+                    area_accion="General",
+                    institucion_id=id_inst,
+                )
+                partes = (nombre_completo.value or "").strip().split(None, 1)
+                nombre = partes[0] if partes else "Usuario"
+                apellido = partes[1] if len(partes) > 1 else ""
+                rol = (cargo.value or "Directivo").strip()
+                crear_usuario(
+                    nombre=nombre,
+                    apellido=apellido,
+                    email=(correo.value or "").strip().lower(),
+                    contrasena_plana=contrasena.value,
+                    rol=rol,
+                    brigada_id=id_brigada,
+                    usuario=usuario_str.lower(),
+                )
+                # Guardar logo si se indicó una ruta válida
+                ruta_logo = (campo_ruta_logo.value or "").strip()
+                if ruta_logo and os.path.isfile(ruta_logo):
+                    try:
+                        ext = os.path.splitext(ruta_logo)[1].lower()
+                        if ext not in (".png", ".jpg", ".jpeg"):
+                            ext = ".png"
+                        os.makedirs(DIR_LOGOS, exist_ok=True)
+                        dest = os.path.join(DIR_LOGOS, f"{id_inst}{ext}")
+                        shutil.copy2(ruta_logo, dest)
+                        actualizar_logo_institucion(id_inst, f"{id_inst}{ext}")
+                    except Exception:
+                        pass
                 page.snack_bar = ft.SnackBar(ft.Text("¡Registro exitoso! Ahora inicie sesión."), bgcolor="#22c55e")
                 page.snack_bar.open = True
                 on_back_to_login()
@@ -427,101 +551,11 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                 _mostrar_error(f"Error al registrar: {err}")
             _reset_btn()
             page.update()
-            return
-
-        # ---------- Registro como DIRECTIVO / COORDINADOR ----------
-        # Validar campos obligatorios
-        if not nom_inst.value or not nom_inst.value.strip():
-            _mostrar_error("Ingrese el nombre de la institución.")
-            _reset_btn()
-            return
-
-        if not nombre_completo.value or not nombre_completo.value.strip():
-            _mostrar_error("Ingrese el nombre completo del administrador.")
-            _reset_btn()
-            return
-
-        if not correo.value or not correo.value.strip():
-            _mostrar_error("Ingrese el correo electrónico.")
-            _reset_btn()
-            return
-
-        # Validar formato de email (mostrar en diálogo para que siempre se vea)
-        if not _es_email_valido(correo.value.strip()):
-            _mostrar_error("El correo debe tener un formato válido (ejemplo: nombre@dominio.com).")
-            _reset_btn()
-            return
-
-        if not contrasena.value or not contrasena.value.strip():
-            _mostrar_error("Ingrese una contraseña.")
-            _reset_btn()
-            return
-
-        if contrasena.value != confirmar.value:
-            _mostrar_error("Las contraseñas no coinciden.")
-            _reset_btn()
-            return
-
-        if len(contrasena.value) < 6:
-            _mostrar_error("La contraseña debe tener al menos 6 caracteres.")
-            _reset_btn()
-            return
-
-        if email_ya_existe(correo.value.strip().lower()):
-            _mostrar_error("El correo ya está registrado. Use otro o inicie sesión.")
-            _reset_btn()
-            return
-
-        usuario_str = (usuario.value or "").strip()
-        if not usuario_str:
-            _mostrar_error("Ingrese un usuario para iniciar sesión.")
-            _reset_btn()
-            return
-        if usuario_ya_existe(usuario_str.lower()):
-            _mostrar_error("Ese nombre de usuario ya está en uso. Elija otro.")
-            _reset_btn()
-            return
-
-        try:
-            id_inst = crear_institucion(
-                nombre=nom_inst.value.strip(),
-                direccion=(direccion.value or "").strip(),
-                telefono=(tel_inst.value or "").strip(),
-            )
-            id_brigada = crear_brigada(
-                nombre_brigada=f"Brigada {nom_inst.value.strip()}",
-                area_accion="General",
-                institucion_id=id_inst,
-            )
-            partes = (nombre_completo.value or "").strip().split(None, 1)
-            nombre = partes[0] if partes else "Usuario"
-            apellido = partes[1] if len(partes) > 1 else ""
-            rol = (cargo.value or "Directivo").strip()
-            crear_usuario(
-                nombre=nombre,
-                apellido=apellido,
-                email=(correo.value or "").strip().lower(),
-                contrasena_plana=contrasena.value,
-                rol=rol,
-                brigada_id=id_brigada,
-                usuario=usuario_str.lower(),
-            )
-            # Guardar logo si se seleccionó uno
-            if logo_seleccionado.get("path"):
-                try:
-                    os.makedirs(DIR_LOGOS, exist_ok=True)
-                    ext = os.path.splitext(logo_seleccionado["path"])[1] or ".png"
-                    dest = os.path.join(DIR_LOGOS, f"{id_inst}{ext}")
-                    shutil.copy2(logo_seleccionado["path"], dest)
-                    actualizar_logo_institucion(id_inst, f"{id_inst}{ext}")
-                except Exception:
-                    pass
-            page.snack_bar = ft.SnackBar(ft.Text("¡Registro exitoso! Ahora inicie sesión."), bgcolor="#22c55e")
-            page.snack_bar.open = True
-            on_back_to_login()
-        except Exception as err:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Error al registrar: {err}"), bgcolor="#ef4444")
-            page.snack_bar.open = True
+        except (RuntimeError, Exception) as err:
+            if _es_error_conexion(err):
+                _mostrar_error("No se pudo conectar a la base de datos. Verifique que MySQL esté en ejecución (localhost:3306).")
+            else:
+                _mostrar_error(f"Error: {err}")
             _reset_btn()
             page.update()
 
@@ -555,9 +589,22 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                 spacing=0,
             ),
             ft.Container(height=16),
-            _titulo_seccion("Logo de la institución", ft.Icons.IMAGE_OUTLINED),
-            ft.Container(content=boton_subir_logo),
-            ft.Container(content=texto_logo, padding=ft.Padding.only(top=6)),
+            _titulo_seccion("Logo de la institución (opcional)", ft.Icons.IMAGE_OUTLINED),
+            ft.Row(
+                [
+                    ft.Container(content=_input_con_titulo_y_glow("Ruta del logo", campo_ruta_logo, GLOW_AZUL), expand=True),
+                    ft.Container(width=12),
+                    ft.Container(
+                        content=ft.OutlinedButton(
+                            content=ft.Row([ft.Icon(ft.Icons.FOLDER_OPEN, size=18), ft.Text("Seleccionar archivo")], spacing=6),
+                            on_click=abrir_selector_archivo,
+                        ),
+                        alignment=ft.Alignment(-1, 0),
+                    ),
+                ],
+                spacing=0,
+            ),
+            ft.Text("Use el botón para elegir una imagen PNG o JPG desde su equipo.", size=12, color=COLOR_TEXTO_SEC),
             ft.Divider(height=30, color=COLOR_VERDE_SUAVE),
             _titulo_seccion("Datos del Administrador/Directivo", ft.Icons.PERSON_ROUNDED),
             ft.Row(
