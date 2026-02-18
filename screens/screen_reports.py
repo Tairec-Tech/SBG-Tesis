@@ -1,5 +1,6 @@
 """Reportes de Incidentes — estilo Figma, tonos verdes."""
 
+import json
 import flet as ft
 from theme import (
     COLOR_PRIMARIO,
@@ -14,9 +15,21 @@ from theme import (
     get_sombra_card,
 )
 from components import titulo_pagina, boton_primario, card_principal
+from database.crud_usuario import es_profesor
 
 
 def build(page: ft.Page, **kwargs) -> ft.Control:
+    usuario = {}
+    try:
+        if getattr(page, "data", None) and isinstance(page.data.get("usuario_actual"), dict):
+            usuario = page.data["usuario_actual"]
+        elif page.client_storage.get("usuario_actual"):
+            raw = page.client_storage.get("usuario_actual")
+            usuario = json.loads(raw) if isinstance(raw, str) else (raw or {})
+    except Exception:
+        pass
+    puede_crear_reporte = es_profesor(usuario.get("rol", ""))
+
     def on_nuevo_report(_):
         from forms import abrir_form_nuevo_reporte
         abrir_form_nuevo_reporte(page)
@@ -26,7 +39,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
             titulo_pagina(
                 "Reportes de Incidentes",
                 "Registra y da seguimiento a los eventos y situaciones",
-                accion=boton_primario("Nuevo Reporte", ft.Icons.ADD, on_click=on_nuevo_report),
+                accion=boton_primario("Nuevo Reporte", ft.Icons.ADD, on_click=on_nuevo_report) if puede_crear_reporte else None,
             ),
             ft.Container(height=32),
             _build_summary_cards(),

@@ -25,8 +25,9 @@ def get_connection():
 
 def ejecutar(consulta, params=None, commit=False):
     """
-    Ejecuta una consulta (SELECT o INSERT/UPDATE/DELETE).
-    Si commit=True, hace commit. Retorna el cursor para SELECT o el lastrowid para INSERT.
+    Ejecuta una consulta.
+    Si commit=True: hace commit y retorna lastrowid. Cierra conexión.
+    Si commit=False: hace fetchall y retorna (rows, description). Cierra conexión.
     """
     conn = get_connection()
     try:
@@ -34,8 +35,15 @@ def ejecutar(consulta, params=None, commit=False):
         cursor.execute(consulta, params or ())
         if commit:
             conn.commit()
-            return cursor.lastrowid
-        return cursor
+            last_id = cursor.lastrowid
+            cursor.close()
+            return last_id
+        else:
+            rows = cursor.fetchall()
+            description = cursor.description
+            cursor.close()
+            return rows, description
     finally:
-        if not commit:
+        if conn.is_connected():
             conn.close()
+

@@ -1,0 +1,23 @@
+============================================
+  CREDENCIALES — Seed director, profesores y alumnos
+  (después de ejecutar seed_director_profesores_alumnos.sql)
+============================================
+
+En el login hay que elegir la INSTITUCIÓN (ej. Urbe) y luego usuario + contraseña.
+
+--- DIRECTOR (1) ---
+  Usuario:   director
+  Contraseña: director123
+  Nombre: Ricardo Mendoza
+
+--- PROFESORES (3) ---
+  Usuario:   profesor1    |  Contraseña: profesor1   |  Carlos Martínez  (Brigada Verde)
+  Usuario:   profesor2    |  Contraseña: profesor2   |  Ana Rodríguez    (Brigada Eco)
+  Usuario:   profesor3    |  Contraseña: profesor3   |  Luis García     (Brigada Tierra)
+
+--- ALUMNOS (30; 10 por cada profesor) ---
+  Contraseña común: alumno123
+  Ejemplos de correo: a1b7@urbe.edu.ve, a1b8@urbe.edu.ve, a1b9@urbe.edu.ve ...
+  (Los alumnos no tienen usuario de login; se gestionan desde la app por el profesor.)
+
+============================================

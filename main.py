@@ -19,19 +19,21 @@ sys.stdout.flush()
 sys.stderr.flush()
 
 from theme import (
-    COLOR_FONDO_VERDE,
+    TEMA_CLARO,
+    TEMA_OSCURO,
+    HEX_FONDO_VERDE,
+    HEX_PRIMARIO_OSCURO,
+    HEX_PRIMARIO,
+    HEX_PRIMARIO_CLARO,
+    COLOR_FONDO_VERDE, # Dynamic
     COLOR_FONDO_GRADIENTE_INICIO,
-    COLOR_FONDO_GRADIENTE_FIN,
-    COLOR_PRIMARIO_OSCURO,
-    COLOR_PRIMARIO,
-    COLOR_PRIMARIO_CLARO,
 )
 from screens import screen_login, screen_register, screen_recovery
 from screens import screen_dashboard
 from components import build_sidebar
 
 # Cortina de transición (paleta verde)
-TRANSITION_VERDE = COLOR_PRIMARIO
+TRANSITION_VERDE = HEX_PRIMARIO
 TRANSITION_TEXT = "#FFFFFF"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGOS_DIR = os.path.join(BASE_DIR, "uploads", "logos")
@@ -43,6 +45,11 @@ ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 async def main(page: ft.Page):
     log("Ventana principal abierta")
     page.title = "Sistema de Brigadas Escolares"
+    # Configuración de temas
+    page.theme = TEMA_CLARO
+    page.dark_theme = TEMA_OSCURO
+    page.theme_mode = ft.ThemeMode.LIGHT
+    
     page.bgcolor = COLOR_FONDO_GRADIENTE_INICIO
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -55,7 +62,7 @@ async def main(page: ft.Page):
     gap_bloque = 4
     duracion_anim = 1200
     # Tres tonos verdes para S, G, B (brigadas ambientales)
-    c_s, c_g, c_b = COLOR_PRIMARIO_OSCURO, COLOR_PRIMARIO, COLOR_PRIMARIO_CLARO
+    c_s, c_g, c_b = HEX_PRIMARIO_OSCURO, HEX_PRIMARIO, HEX_PRIMARIO_CLARO
     partes_sgb = [
         (0, 0, c_s), (1, 0, c_s), (2, 0, c_s), (0, 1, c_s), (0, 2, c_s), (1, 2, c_s), (2, 2, c_s), (2, 3, c_s), (0, 4, c_s), (1, 4, c_s), (2, 4, c_s),
         (4, 0, c_g), (5, 0, c_g), (6, 0, c_g), (4, 1, c_g), (4, 2, c_g), (5, 2, c_g), (6, 2, c_g), (4, 3, c_g), (6, 3, c_g), (4, 4, c_g), (5, 4, c_g), (6, 4, c_g),
@@ -118,7 +125,6 @@ async def main(page: ft.Page):
     )
 
     # ----- Estado de la app -----
-    # Contenedor del área de contenido (sidebar cambia su .content)
     content_area = ft.Container(expand=True, bgcolor=COLOR_FONDO_VERDE)
     vista_actual = ["Panel Principal"]
     content_area.content = screen_dashboard.build(page)
@@ -183,7 +189,8 @@ async def main(page: ft.Page):
         """Secuencia: cortina verde -> logo o icono (pop) -> texto bienvenida con abreviatura e institución -> cambio a app -> desvanecer."""
         # Obtener datos del usuario para personalizar bienvenida
         try:
-            data_str = await page.shared_preferences.get("usuario_actual")
+            prefs = ft.SharedPreferences()
+            data_str = await prefs.get("usuario_actual")
             data = json.loads(data_str) if data_str else {}
         except Exception:
             data = {}
@@ -198,7 +205,7 @@ async def main(page: ft.Page):
         logo_path = os.path.join(LOGOS_DIR, logo_ruta) if logo_ruta else None
         if logo_path and os.path.isfile(logo_path):
             icon_success_container.content = ft.Container(
-                content=ft.Image(src=logo_path, width=100, height=100, fit=ft.ImageFit.COVER),
+                content=ft.Image(src=logo_path, width=100, height=100, fit=ft.BoxFit.COVER),
                 width=100,
                 height=100,
                 border_radius=50,
@@ -234,7 +241,8 @@ async def main(page: ft.Page):
         page.update()
 
     async def cerrar_sesion():
-        await page.shared_preferences.remove("usuario_actual")
+        prefs = ft.SharedPreferences()
+        await prefs.remove("usuario_actual")
         if getattr(page, "data", None) and "usuario_actual" in page.data:
             del page.data["usuario_actual"]
         contenedor_principal.content = build_login_view()

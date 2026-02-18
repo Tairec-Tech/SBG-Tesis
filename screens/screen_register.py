@@ -14,12 +14,10 @@ except Exception:
 
 from database.crud_usuario import (
     crear_institucion,
-    crear_brigada,
     crear_usuario,
     email_ya_existe,
     usuario_ya_existe,
     listar_instituciones,
-    listar_brigadas_por_institucion,
     actualizar_logo_institucion,
 )
 try:
@@ -286,6 +284,12 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         cursor_color=COLOR_PRIMARIO,
     )
 
+    cedula_admin = ft.TextField(
+        hint_text="Cédula",
+        border=ft.InputBorder.NONE,
+        text_style=ft.TextStyle(size=14, color="#334155"),
+        cursor_color=COLOR_PRIMARIO,
+    )
     usuario = ft.TextField(
         hint_text="Usuario deseado",
         border=ft.InputBorder.NONE,
@@ -322,6 +326,12 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     )
     nombre_prof = ft.TextField(
         hint_text="Nombre completo",
+        border=ft.InputBorder.NONE,
+        text_style=ft.TextStyle(size=14, color="#334155"),
+        cursor_color=COLOR_PRIMARIO,
+    )
+    cedula_prof = ft.TextField(
+        hint_text="Cédula",
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color="#334155"),
         cursor_color=COLOR_PRIMARIO,
@@ -427,12 +437,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                     return
                 try:
                     id_inst = int(dropdown_inst.value)
-                    brigadas = listar_brigadas_por_institucion(id_inst)
-                    if not brigadas:
-                        _mostrar_error("La institución seleccionada no tiene brigadas. Contacte al administrador.")
-                        _reset_btn()
-                        return
-                    id_brigada = brigadas[0]["idBrigada"]
+                    # El profesor se vincula a la institución; las brigadas las crea después.
                     partes = nombre_prof.value.strip().split(None, 1)
                     nombre_p = partes[0] if partes else "Usuario"
                     apellido_p = partes[1] if len(partes) > 1 else ""
@@ -442,8 +447,10 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                         email=correo_prof.value.strip().lower(),
                         contrasena_plana=contrasena_prof.value,
                         rol="Profesor",
-                        brigada_id=id_brigada,
+                        brigada_id=None,
+                        institucion_id=id_inst,
                         usuario=usuario_prof.value.strip().lower(),
+                        cedula=(cedula_prof.value or "").strip() or None,
                     )
                     page.snack_bar = ft.SnackBar(ft.Text("¡Registro exitoso! Ahora inicie sesión."), bgcolor="#22c55e")
                     page.snack_bar.open = True
@@ -513,11 +520,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                     direccion=(direccion.value or "").strip(),
                     telefono=(tel_inst.value or "").strip(),
                 )
-                id_brigada = crear_brigada(
-                    nombre_brigada=f"Brigada {nom_inst.value.strip()}",
-                    area_accion="General",
-                    institucion_id=id_inst,
-                )
+                # No se crea brigada: directivos/coordinadores no tienen brigada; las brigadas las crean los profesores.
                 partes = (nombre_completo.value or "").strip().split(None, 1)
                 nombre = partes[0] if partes else "Usuario"
                 apellido = partes[1] if len(partes) > 1 else ""
@@ -528,8 +531,10 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                     email=(correo.value or "").strip().lower(),
                     contrasena_plana=contrasena.value,
                     rol=rol,
-                    brigada_id=id_brigada,
+                    brigada_id=None,
+                    institucion_id=id_inst,
                     usuario=usuario_str.lower(),
+                    cedula=(cedula_admin.value or "").strip() or None,
                 )
                 # Guardar logo si se indicó una ruta válida
                 ruta_logo = (campo_ruta_logo.value or "").strip()
@@ -625,6 +630,8 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                 spacing=0,
             ),
             ft.Divider(height=30, color=COLOR_VERDE_SUAVE),
+            _input_con_titulo_y_glow("Cédula", cedula_admin, GLOW_MORADO),
+            ft.Container(height=10),
             _titulo_seccion("Credenciales de Acceso", ft.Icons.LOCK_ROUNDED),
             _input_con_titulo_y_glow("Usuario *", usuario, GLOW_VERDE),
             ft.Container(height=10),
@@ -647,6 +654,8 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
             _input_con_titulo_y_glow("Institución donde trabaja *", dropdown_inst, GLOW_AZUL, is_dropdown=True),
             ft.Container(height=16),
             _input_con_titulo_y_glow("Nombre completo *", nombre_prof, GLOW_MORADO),
+            ft.Container(height=16),
+            _input_con_titulo_y_glow("Cédula", cedula_prof, GLOW_MORADO),
             ft.Container(height=16),
             _titulo_seccion("Credenciales de acceso", ft.Icons.LOCK_ROUNDED),
             _input_con_titulo_y_glow("Usuario *", usuario_prof, GLOW_VERDE),

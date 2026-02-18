@@ -295,10 +295,12 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
                     "email": usuario.get("email"),
                     "usuario": usuario.get("usuario"),
                     "rol": usuario["rol"],
+                    "institucion_id": inst.get("idInstitucion") if inst else None,
                     "institucion_nombre": inst.get("nombre_institucion", "Institución") if inst else "Institución",
                     "institucion_logo_ruta": inst.get("logo_ruta") if inst else None,
                 }
-                await page.shared_preferences.set("usuario_actual", json.dumps(datos))
+                prefs = ft.SharedPreferences()
+                await prefs.set("usuario_actual", json.dumps(datos))
                 if getattr(page, "data", None) is None:
                     page.data = {}
                 page.data["usuario_actual"] = datos

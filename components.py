@@ -48,11 +48,13 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         screen_reports,
         screen_statistics,
         screen_content,
+        screen_activities,
     )
 
     items = [
         ("Panel Principal", ft.Icons.DASHBOARD_OUTLINED, screen_dashboard.build),
         ("Gestión de Brigadas", ft.Icons.SHIELD_OUTLINED, screen_brigades.build),
+        ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, screen_activities.build),
         ("Brigadistas", ft.Icons.PEOPLE_OUTLINED, screen_brigadistas.build),
         ("Turnos y Horarios", ft.Icons.CALENDAR_MONTH_OUTLINED, screen_shifts.build),
         ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, screen_reports.build),
@@ -86,21 +88,36 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
             )
         )
 
-    # Modo interfaz: toggle compacto (solo iconos) para que Día y Noche quepan en el menú
-    modo_dia_activo = True  # estado visual solamente
+    # Modo interfaz: Día / Noche (cambia page.theme_mode)
+    def _aplicar_modo_dia(e):
+        e.page.theme_mode = ft.ThemeMode.LIGHT
+        e.page.update()
+        if on_nav_change:
+            on_nav_change()
+
+    def _aplicar_modo_noche(e):
+        e.page.theme_mode = ft.ThemeMode.DARK
+        e.page.update()
+        if on_nav_change:
+            on_nav_change()
+
+    tema_actual = getattr(page, "theme_mode", None) or ft.ThemeMode.LIGHT
+    es_oscuro = tema_actual == ft.ThemeMode.DARK
     btn_dia = ft.IconButton(
         icon=ft.Icons.LIGHT_MODE,
-        icon_color=COLOR_SIDEBAR_TEXTO,
+        icon_color=COLOR_SIDEBAR_TEXTO if not es_oscuro else COLOR_SIDEBAR_TEXTO_SEC,
         icon_size=22,
-        style=ft.ButtonStyle(bgcolor=COLOR_SIDEBAR_ACTIVO, shape=ft.RoundedRectangleBorder(radius=8)),
+        style=ft.ButtonStyle(bgcolor=COLOR_SIDEBAR_ACTIVO if not es_oscuro else None, shape=ft.RoundedRectangleBorder(radius=8)),
         tooltip="Modo Día",
+        on_click=_aplicar_modo_dia,
     )
     btn_noche = ft.IconButton(
         icon=ft.Icons.DARK_MODE,
-        icon_color=COLOR_SIDEBAR_TEXTO_SEC,
+        icon_color=COLOR_SIDEBAR_TEXTO_SEC if not es_oscuro else COLOR_SIDEBAR_TEXTO,
         icon_size=22,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+        style=ft.ButtonStyle(bgcolor=COLOR_SIDEBAR_ACTIVO if es_oscuro else None, shape=ft.RoundedRectangleBorder(radius=8)),
         tooltip="Modo Noche",
+        on_click=_aplicar_modo_noche,
     )
     modo_toggle = ft.Container(
         content=ft.Column(
@@ -119,7 +136,8 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
     )
 
     # Usuario activo (desde login) — se guarda como JSON string
-    raw = await page.shared_preferences.get("usuario_actual")
+    prefs = ft.SharedPreferences()
+    raw = await prefs.get("usuario_actual")
     if isinstance(raw, str):
         try:
             usuario_data = json.loads(raw) or {}
@@ -277,3 +295,71 @@ def boton_secundario(texto, icono=None, on_click=None, width=None):
     )
 
 
+
+def card_kpi(titulo, valor, icono, color_icono, color_fondo=None):
+    """Tarjeta pequeña para KPIs (Total Brigadas, etc)."""
+    return ft.Container(
+        content=ft.Row(
+            [
+                ft.Container(
+                    content=ft.Icon(icono, color=color_icono, size=32),
+                    padding=12,
+                    border_radius=12,
+                    bgcolor=ft.Colors.with_opacity(0.1, color_icono),
+                ),
+                ft.Container(width=12),
+                ft.Column(
+                    [
+                        ft.Text(titulo, size=14, color=COLOR_TEXTO, weight="w600"),
+                        ft.Text(str(valor), size=24, weight="bold", color=COLOR_TEXTO),
+                    ],
+                    spacing=2,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+            ],
+            alignment=ft.MainAxisAlignment.START,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=20,
+        bgcolor=color_fondo or COLOR_CARD,
+        border_radius=RADIO,
+        border=ft.Border.all(1, COLOR_BORDE),
+        shadow=get_sombra_suave(),
+        expand=True,
+    )
+
+
+def item_actividad_reciente(titulo, fecha, estado, brigada_nombre):
+    """Fila para lista de actividades recientes."""
+    color_estado = {
+        "Completada": ft.Colors.GREEN,
+        "Pendiente": ft.Colors.ORANGE,
+        "En Progreso": ft.Colors.BLUE,
+        "Cancelada": ft.Colors.RED,
+    }.get(estado, ft.Colors.GREY)
+
+    return ft.Container(
+        content=ft.Row(
+            [
+                ft.Icon(ft.Icons.EVENT_NOTE, color=COLOR_PRIMARIO, size=20),
+                ft.Container(width=16),
+                ft.Column(
+                    [
+                        ft.Text(titulo, size=16, weight="w500", color=COLOR_TEXTO),
+                        ft.Text(f"{brigada_nombre} — {fecha}", size=12, color=COLOR_TEXTO_SEC),
+                    ],
+                    expand=True,
+                    spacing=2,
+                ),
+                ft.Container(
+                    content=ft.Text(estado, size=12, color=color_estado, weight="bold"),
+                    padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                    border_radius=8,
+                    bgcolor=ft.Colors.with_opacity(0.1, color_estado),
+                ),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        ),
+        padding=ft.Padding.symmetric(vertical=12, horizontal=4),
+        border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.1, COLOR_BORDE))),
+    )

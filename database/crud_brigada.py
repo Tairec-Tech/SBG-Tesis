@@ -5,27 +5,41 @@ Requiere haber ejecutado database/migrate_brigada_campos.sql si usas descripcion
 from database.connection import get_connection
 
 
-def insertar_brigada(nombre, descripcion, coordinador, color_identificador, institucion_id=1, profesor_id=None):
+def insertar_brigada(nombre, descripcion, coordinador, color_identificador, institucion_id=1, profesor_id=None, subjefe_id=None):
     """
     Inserta una nueva brigada.
     institucion_id: por defecto 1 (debe existir en Institucion_Educativa).
     profesor_id: ID del profesor que crea/administra la brigada (NULL si la crea un admin sin asignar).
+    subjefe_id: ID del brigadista (alumno) designado como sublíder (opcional).
     Retorna el idBrigada creado o lanza excepción.
     """
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        # area_accion es obligatorio en el esquema original; usamos descripcion truncada o nombre
         area_accion = (descripcion or nombre or "General")[:45]
-        cursor.execute(
-            """
-            INSERT INTO Brigada (
-                nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
-                Institucion_Educativa_idInstitucion, profesor_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (nombre, area_accion, descripcion or None, coordinador or None, color_identificador or None, institucion_id, profesor_id),
-        )
+        try:
+            cursor.execute(
+                """
+                INSERT INTO Brigada (
+                    nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
+                    Institucion_Educativa_idInstitucion, profesor_id, subjefe_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (nombre, area_accion, descripcion or None, coordinador or None, color_identificador or None, institucion_id, profesor_id, subjefe_id),
+            )
+        except Exception as e:
+            if "subjefe_id" in str(e) or "Unknown column" in str(e):
+                cursor.execute(
+                    """
+                    INSERT INTO Brigada (
+                        nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
+                        Institucion_Educativa_idInstitucion, profesor_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (nombre, area_accion, descripcion or None, coordinador or None, color_identificador or None, institucion_id, profesor_id),
+                )
+            else:
+                raise
         conn.commit()
         return cursor.lastrowid
     finally:
@@ -46,31 +60,49 @@ def listar_brigadas():
             cursor.execute(
                 """
                 SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
-                    b.descripcion, b.coordinador, b.color_identificador,
+                    b.descripcion, b.coordinador, b.color_identificador, b.profesor_id,
+                    p.nombre AS profesor_nombre, p.apellido AS profesor_apellido,
                     COUNT(u.idUsuario) AS num_miembros
                 FROM Brigada b
                 LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
-                GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador
+                LEFT JOIN Usuario p ON p.idUsuario = b.profesor_id
+                GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador,
+                         b.profesor_id, p.nombre, p.apellido
                 ORDER BY b.nombre_brigada
                 """
             )
         except Exception:
-            cursor.execute(
-                """
-                SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
-                    COUNT(u.idUsuario) AS num_miembros
-                FROM Brigada b
-                LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
-                GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion
-                ORDER BY b.nombre_brigada
-                """
-            )
+            try:
+                cursor.execute(
+                    """
+                    SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
+                        b.descripcion, b.coordinador, b.color_identificador,
+                        COUNT(u.idUsuario) AS num_miembros
+                    FROM Brigada b
+                    LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
+                    GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador
+                    ORDER BY b.nombre_brigada
+                    """
+                )
+            except Exception:
+                cursor.execute(
+                    """
+                    SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
+                        COUNT(u.idUsuario) AS num_miembros
+                    FROM Brigada b
+                    LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
+                    GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion
+                    ORDER BY b.nombre_brigada
+                    """
+                )
         rows = cursor.fetchall()
-        # Normalizar: asegurar claves opcionales
         for r in rows:
             r.setdefault("descripcion", None)
             r.setdefault("coordinador", None)
             r.setdefault("color_identificador", None)
+            r.setdefault("profesor_id", None)
+            r.setdefault("profesor_nombre", None)
+            r.setdefault("profesor_apellido", None)
             r["num_miembros"] = r.get("num_miembros", 0) or 0
         return rows
     finally:
@@ -78,7 +110,7 @@ def listar_brigadas():
 
 
 def obtener_brigada(id_brigada: int):
-    """Obtiene una brigada por id. Retorna dict o None."""
+    """Obtiene una brigada por id (con profesor_id y subjefe_id si existen). Retorna dict o None."""
     conn = get_connection()
     try:
         cursor = conn.cursor(dictionary=True)
@@ -86,21 +118,33 @@ def obtener_brigada(id_brigada: int):
             cursor.execute(
                 """
                 SELECT idBrigada, nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
-                    Institucion_Educativa_idInstitucion
+                    Institucion_Educativa_idInstitucion, profesor_id, subjefe_id
                 FROM Brigada WHERE idBrigada = %s
                 """,
                 (id_brigada,),
             )
         except Exception:
-            cursor.execute(
-                "SELECT idBrigada, nombre_brigada, area_accion, Institucion_Educativa_idInstitucion FROM Brigada WHERE idBrigada = %s",
-                (id_brigada,),
-            )
+            try:
+                cursor.execute(
+                    """
+                    SELECT idBrigada, nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
+                        Institucion_Educativa_idInstitucion
+                    FROM Brigada WHERE idBrigada = %s
+                    """,
+                    (id_brigada,),
+                )
+            except Exception:
+                cursor.execute(
+                    "SELECT idBrigada, nombre_brigada, area_accion, Institucion_Educativa_idInstitucion FROM Brigada WHERE idBrigada = %s",
+                    (id_brigada,),
+                )
         row = cursor.fetchone()
         if row:
             row.setdefault("descripcion", None)
             row.setdefault("coordinador", None)
             row.setdefault("color_identificador", None)
+            row.setdefault("profesor_id", None)
+            row.setdefault("subjefe_id", None)
         return row
     finally:
         conn.close()
