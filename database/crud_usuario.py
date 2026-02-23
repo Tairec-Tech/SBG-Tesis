@@ -33,14 +33,24 @@ def verificar_login(email: str, password: str):
     return usuario
 
 
-def crear_institucion(nombre: str, direccion: str, telefono: str) -> int:
+def _asegurar_columna_cdce(cursor):
+    """Verifica y añade la columna cdce si no existe."""
+    try:
+        cursor.execute("SELECT cdce FROM Institucion_Educativa LIMIT 1")
+        cursor.fetchall()
+    except Exception:
+        cursor.execute("ALTER TABLE Institucion_Educativa ADD COLUMN cdce VARCHAR(100)")
+
+
+def crear_institucion(nombre: str, direccion: str, telefono: str, cdce: str = None) -> int:
     """Inserta una institución y retorna idInstitucion."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
+        _asegurar_columna_cdce(cursor)
         cursor.execute(
-            "INSERT INTO Institucion_Educativa (nombre_institucion, direccion, telefono) VALUES (%s, %s, %s)",
-            (nombre, direccion, telefono),
+            "INSERT INTO Institucion_Educativa (nombre_institucion, direccion, telefono, cdce) VALUES (%s, %s, %s, %s)",
+            (nombre, direccion, telefono, cdce),
         )
         conn.commit()
         return cursor.lastrowid
@@ -49,44 +59,48 @@ def crear_institucion(nombre: str, direccion: str, telefono: str) -> int:
 
 
 def listar_instituciones():
-    """Lista todas las instituciones. Retorna lista de dict: idInstitucion, nombre_institucion, direccion, telefono, logo_ruta."""
+    """Lista todas las instituciones. Retorna lista de dict: idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce."""
     conn = get_connection()
     try:
         cursor = conn.cursor(dictionary=True)
+        _asegurar_columna_cdce(cursor)
         try:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta FROM Institucion_Educativa ORDER BY nombre_institucion"
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce FROM Institucion_Educativa ORDER BY nombre_institucion"
             )
         except Exception:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono FROM Institucion_Educativa ORDER BY nombre_institucion"
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, cdce FROM Institucion_Educativa ORDER BY nombre_institucion"
             )
         rows = cursor.fetchall()
         for r in rows:
             r.setdefault("logo_ruta", None)
+            r.setdefault("cdce", None)
         return rows
     finally:
         conn.close()
 
 
 def obtener_institucion_por_id(id_institucion: int):
-    """Obtiene una institución por ID. Retorna dict con nombre_institucion, logo_ruta, etc."""
+    """Obtiene una institución por ID. Retorna dict con nombre_institucion, logo_ruta, cdce, etc."""
     conn = get_connection()
     try:
         cursor = conn.cursor(dictionary=True)
+        _asegurar_columna_cdce(cursor)
         try:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta FROM Institucion_Educativa WHERE idInstitucion = %s",
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce FROM Institucion_Educativa WHERE idInstitucion = %s",
                 (id_institucion,),
             )
         except Exception:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono FROM Institucion_Educativa WHERE idInstitucion = %s",
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, cdce FROM Institucion_Educativa WHERE idInstitucion = %s",
                 (id_institucion,),
             )
         row = cursor.fetchone()
         if row:
             row.setdefault("logo_ruta", None)
+            row.setdefault("cdce", None)
         return row
     finally:
         conn.close()

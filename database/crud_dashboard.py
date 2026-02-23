@@ -12,7 +12,7 @@ def get_kpi_stats():
         "total_brigadas": 0,
         "total_usuarios": 0,
         "actividades_activas": 0,
-        "impacto_global": 0
+        "actividades_completadas": 0
     }
     
     try:
@@ -28,10 +28,9 @@ def get_kpi_stats():
         rows, _ = ejecutar("SELECT COUNT(*) FROM actividad WHERE estado NOT IN ('Completada', 'Cancelada')")
         stats["actividades_activas"] = rows[0][0] if rows else 0
 
-        # Impacto Global
-        rows, _ = ejecutar("SELECT SUM(valor) FROM indicador_ambiental")
-        val = rows[0][0] if rows else 0
-        stats["impacto_global"] = float(val) if val else 0.0
+        # Actividades Completadas
+        rows, _ = ejecutar("SELECT COUNT(*) FROM actividad WHERE estado = 'Completada'")
+        stats["actividades_completadas"] = rows[0][0] if rows else 0
 
     except Exception as e:
         print(f"Error obteniendo KPIs: {e}")

@@ -6,6 +6,7 @@ import flet as ft
 
 from database.crud_usuario import verificar_login_por_usuario_e_institucion, listar_instituciones, obtener_institucion_por_usuario
 from util_log import log
+from auth_theme_toggle import create_auth_theme_toggle
 
 from theme import (
     COLOR_TEXTO,
@@ -15,6 +16,7 @@ from theme import (
     COLOR_PRIMARIO_CLARO,
     COLOR_FONDO_VERDE,
     COLOR_VERDE_SUAVE,
+    COLOR_CARD,
 )
 
 # Colores de las esferas en los campos (pueden ser cualquiera)
@@ -117,6 +119,14 @@ class FloatingElement(ft.Container):
 
 def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is_dropdown: bool = False) -> ft.Column:
     """Título arriba y debajo el input con glow (triple capa). Si is_dropdown, mismo tamaño que los campos (altura 56)."""
+    # Asegurar que el campo se adapte al tema oscuro
+    campo.color = COLOR_TEXTO
+    if hasattr(campo, 'dropdown_color'):
+        campo.dropdown_color = COLOR_CARD
+    if isinstance(campo, ft.Dropdown):
+        # Asegurar icono de dropdown visible
+        campo.icon_content = ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=COLOR_TEXTO_SEC)
+
     if is_dropdown:
         # Mismo tamaño que los TextField: contenedor 56px con el dropdown centrado
         contenido_interno = ft.Container(content=campo, height=56, alignment=ft.Alignment(-1, 0), expand=True)
@@ -145,9 +155,9 @@ def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is
         )
     input_container = ft.Container(
         content=contenido_interno,
-        bgcolor="white",
+        bgcolor=COLOR_CARD,
         border_radius=16,
-        border=ft.Border.all(1, "#E2E8F0"),
+        border=ft.Border.all(1, COLOR_BORDE),
         padding=ft.Padding.only(left=0 if not is_dropdown else 15, right=15),
         height=56,
         clip_behavior=ft.ClipBehavior.HARD_EDGE,
@@ -178,29 +188,30 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
         hint_text="Seleccione su institución",
         options=inst_opciones,
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
-        hint_style=ft.TextStyle(size=14, color="#94A3B8"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         content_padding=ft.Padding(0, 16),
         dense=True,
     )
     campo_usuario = ft.TextField(
         hint_text="Usuario",
-        hint_style=ft.TextStyle(size=14, color="#94A3B8"),
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     campo_password = ft.TextField(
         hint_text="Ingrese su contraseña",
         password=True,
         can_reveal_password=True,
-        hint_style=ft.TextStyle(size=14, color="#94A3B8"),
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     checkbox_profesor = ft.Checkbox(
         label="Soy profesor",
+        label_style=ft.TextStyle(color=COLOR_TEXTO),
         value=False,
         fill_color=COLOR_PRIMARIO,
     )
@@ -379,7 +390,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
                     ),
                     padding=12,
                     border_radius=12,
-                    bgcolor="white",
+                    bgcolor=COLOR_CARD,
                     border=ft.Border.all(1, COLOR_BORDE),
                     on_click=lambda e: on_go_register(),
                     shadow=[
@@ -395,11 +406,11 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
             spacing=0,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
-        bgcolor=ft.Colors.with_opacity(0.85, "white"),
+        bgcolor=ft.Colors.with_opacity(0.85, COLOR_CARD),
         blur=ft.Blur(15, 15),
         padding=ft.Padding.all(40),
         border_radius=35,
-        border=ft.Border.all(1.5, "white"),
+        border=ft.Border.all(1.5, ft.Colors.with_opacity(0.3, COLOR_BORDE)),
         shadow=[
             ft.BoxShadow(
                 blur_radius=60,
@@ -497,6 +508,8 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
 
     page.run_task(animate_background)
 
+    btn_theme_toggle = create_auth_theme_toggle(page)
+
     return ft.Stack(
         [
             ft.Container(expand=True, bgcolor=COLOR_FONDO_VERDE),
@@ -521,6 +534,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
                 alignment=ft.Alignment.CENTER,
                 expand=True,
             ),
+            btn_theme_toggle,
         ],
         expand=True,
     )

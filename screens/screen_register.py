@@ -6,6 +6,8 @@ import re
 import shutil
 import flet as ft
 
+from auth_theme_toggle import create_auth_theme_toggle
+
 try:
     from tkinter import Tk, filedialog
     _TK_AVAILABLE = True
@@ -42,6 +44,7 @@ from theme import (
     COLOR_FONDO_VERDE,
     COLOR_VERDE_SUAVE,
     COLOR_BORDE,
+    COLOR_CARD,
 )
 
 # Mismos colores de glow que el login (azul/morado/verde por sección)
@@ -117,6 +120,15 @@ class FloatingElement(ft.Container):
 
 def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is_dropdown: bool = False) -> ft.Column:
     """Input o dropdown con glow (igual que login). Si es dropdown, no se pone el glow para no tapar la flecha."""
+    
+    # Asegurar que el campo se adapte al tema oscuro
+    campo.color = COLOR_TEXTO
+    if hasattr(campo, 'dropdown_color'):
+        campo.dropdown_color = COLOR_CARD
+    if isinstance(campo, ft.Dropdown):
+        # Asegurar icono de dropdown visible
+        campo.icon_content = ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=COLOR_TEXTO_SEC)
+
     if is_dropdown:
         contenido_interno = campo
     else:
@@ -140,7 +152,7 @@ def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is
         )
     input_container = ft.Container(
         content=contenido_interno,
-        bgcolor="white",
+        bgcolor=COLOR_CARD,
         border_radius=16,
         border=ft.Border.all(1, COLOR_BORDE),
         padding=ft.Padding.only(left=0 if not is_dropdown else 15, right=15),
@@ -200,26 +212,30 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     # --- Campos (admin) ---
     nom_inst = ft.TextField(
         hint_text="Nombre de la institución",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     tel_inst = ft.TextField(
         hint_text="Teléfono oficial",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     direccion = ft.TextField(
         hint_text="Dirección completa",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     nivel = ft.Dropdown(
         hint_text="Seleccione nivel",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=[
             ft.dropdown.Option("Primaria"),
             ft.dropdown.Option("Secundaria"),
@@ -227,11 +243,30 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         ],
     )
 
+    opciones_cdce = [
+        ft.dropdown.Option("CDCE - Antonio Borjas Romero"),
+        ft.dropdown.Option("CDCE - Coquivacoa"),
+        ft.dropdown.Option("CDCE - Cristo de Aranza"),
+        ft.dropdown.Option("CDCE - Francisco Eugenio Bustamante"),
+        ft.dropdown.Option("CDCE - Idelfonso Vásquez"),
+        ft.dropdown.Option("CDCE - Juana de Ávila"),
+        ft.dropdown.Option("CDCE - Olegario Villalobos"),
+        ft.dropdown.Option("CDCE - Venancio Pulgar"),
+        ft.dropdown.Option("Otro / Por Asignar")
+    ]
+    cdce_dropdown = ft.Dropdown(
+        hint_text="Seleccione el CDCE / Parroquia",
+        border=ft.InputBorder.NONE,
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        options=opciones_cdce
+    )
+
     # Logo de institución (solo para admin)
     campo_ruta_logo = ft.TextField(
         hint_text="Ruta del logo (opcional)",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
         expand=True,
     )
@@ -258,14 +293,16 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
 
     nombre_completo = ft.TextField(
         hint_text="Nombre del Director/Enlace",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     cargo = ft.Dropdown(
         hint_text="Cargo (ej. Director, Coord.)",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=[
             ft.dropdown.Option("Directivo"),
             ft.dropdown.Option("Coordinador"),
@@ -273,43 +310,49 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     )
     correo = ft.TextField(
         hint_text="Correo electrónico",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     tel_personal = ft.TextField(
         hint_text="Teléfono móvil",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
 
     cedula_admin = ft.TextField(
         hint_text="Cédula",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     usuario = ft.TextField(
         hint_text="Usuario deseado",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     contrasena = ft.TextField(
         hint_text="Contraseña",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         password=True,
         can_reveal_password=True,
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     confirmar = ft.TextField(
         hint_text="Confirmar contraseña",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         password=True,
         can_reveal_password=True,
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
 
@@ -322,38 +365,42 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         hint_text="Seleccione la institución donde trabaja",
         options=inst_opciones,
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
     )
     nombre_prof = ft.TextField(
         hint_text="Nombre completo",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     cedula_prof = ft.TextField(
         hint_text="Cédula",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     usuario_prof = ft.TextField(
         hint_text="Usuario para iniciar sesión",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     correo_prof = ft.TextField(
         hint_text="Correo electrónico",
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     contrasena_prof = ft.TextField(
         hint_text="Contraseña (mín. 6 caracteres)",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         password=True,
         can_reveal_password=True,
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
     )
     confirmar_prof = ft.TextField(
@@ -519,6 +566,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                     nombre=nom_inst.value.strip(),
                     direccion=(direccion.value or "").strip(),
                     telefono=(tel_inst.value or "").strip(),
+                    cdce=(cdce_dropdown.value or "").strip() or None,
                 )
                 # No se crea brigada: directivos/coordinadores no tienen brigada; las brigadas las crean los profesores.
                 partes = (nombre_completo.value or "").strip().split(None, 1)
@@ -587,12 +635,14 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
             ft.Container(height=10),
             ft.Row(
                 [
-                    ft.Container(content=_input_con_titulo_y_glow("Dirección", direccion, GLOW_AZUL), expand=True),
+                    ft.Container(content=_input_con_titulo_y_glow("Territorio Escolar (CDCE) *", cdce_dropdown, GLOW_AZUL, is_dropdown=True), expand=True),
                     ft.Container(width=16),
-                    ft.Container(content=_input_con_titulo_y_glow("Teléfono de la Institución", tel_inst, GLOW_AZUL), expand=True),
+                    ft.Container(content=_input_con_titulo_y_glow("Teléfono Institución", tel_inst, GLOW_AZUL), expand=True),
                 ],
                 spacing=0,
             ),
+            ft.Container(height=10),
+            _input_con_titulo_y_glow("Dirección", direccion, GLOW_AZUL),
             ft.Container(height=16),
             _titulo_seccion("Logo de la institución (opcional)", ft.Icons.IMAGE_OUTLINED),
             ft.Row(
@@ -722,11 +772,11 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
             ],
             spacing=0,
         ),
-        bgcolor=ft.Colors.with_opacity(0.85, "white"),
+        bgcolor=ft.Colors.with_opacity(0.85, COLOR_CARD),
         blur=ft.Blur(15, 15),
         padding=ft.Padding.all(40),
         border_radius=35,
-        border=ft.Border.all(1.5, "white"),
+        border=ft.Border.all(1.5, ft.Colors.with_opacity(0.3, COLOR_BORDE)),
         shadow=[
             ft.BoxShadow(blur_radius=60, spread_radius=-8, color=ft.Colors.with_opacity(0.2, COLOR_TEXTO), offset=ft.Offset(0, 28)),
             ft.BoxShadow(blur_radius=16, spread_radius=0, color=ft.Colors.with_opacity(0.08, COLOR_TEXTO), offset=ft.Offset(0, 12)),
@@ -812,6 +862,8 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         spacing=0,
     )
 
+    btn_theme_toggle = create_auth_theme_toggle(page)
+
     # --- Stack: fondo + blobs + partículas + contenido central ---
     return ft.Stack(
         [
@@ -835,6 +887,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
                 alignment=ft.Alignment.CENTER,
                 expand=True,
             ),
+            btn_theme_toggle,
         ],
         expand=True,
     )

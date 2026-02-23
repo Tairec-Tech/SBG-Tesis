@@ -36,6 +36,7 @@ _CAMPO_BASE = dict(
     border_radius=RADIO,
     text_size=14,
     color=COLOR_TEXTO,
+    hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
     cursor_color=COLOR_PRIMARIO,
     content_padding=_CAMPO_PADDING,
 )
@@ -1675,10 +1676,13 @@ def abrir_form_turno(page: ft.Page):
     """Cada campo con su título visible."""
     brigada = ft.Dropdown(
         hint_text="Seleccione una brigada",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=[ft.dropdown.Option("Brigada Ambiental")],
         border_color=COLOR_BORDE,
         focused_border_color=COLOR_PRIMARIO,
         border_radius=RADIO,
+        color=COLOR_TEXTO,
         content_padding=_CAMPO_PADDING,
     )
     fecha = ft.TextField(hint_text="dd/mm/aaaa", **_CAMPO_BASE)
@@ -1748,9 +1752,18 @@ def abrir_form_turno(page: ft.Page):
 # ---------- Nuevo Reporte de Incidente (Figma) ----------
 def abrir_form_nuevo_reporte(page: ft.Page):
     """Cada campo con su título visible."""
+    import database.crud_reporte as crud_reporte
+    
+    # Cargar brigadas reales
+    brigadas_bd = listar_brigadas()
+    opciones_brigadas = []
+    for bg in brigadas_bd:
+        opciones_brigadas.append(ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]))
+
     titulo_inc = ft.TextField(hint_text="Resumen breve del incidente", **_CAMPO_BASE)
     desc = ft.TextField(
         hint_text="Describe lo sucedido con detalle...",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         multiline=True,
         min_lines=3,
         max_lines=6,
@@ -1764,15 +1777,20 @@ def abrir_form_nuevo_reporte(page: ft.Page):
     )
     brigada = ft.Dropdown(
         hint_text="Seleccione una brigada",
-        options=[ft.dropdown.Option("Brigada Ambiental")],
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        options=opciones_brigadas,
         border_color=COLOR_BORDE,
         focused_border_color=COLOR_PRIMARIO,
         border_radius=RADIO,
+        color=COLOR_TEXTO,
         content_padding=_CAMPO_PADDING,
     )
     ubicacion = ft.TextField(hint_text="Lugar donde ocurrió el incidente", **_CAMPO_BASE)
     prioridad = ft.Dropdown(
         hint_text="Seleccione prioridad",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=[
             ft.dropdown.Option("Baja - Situación menor"),
             ft.dropdown.Option("Media"),
@@ -1781,6 +1799,7 @@ def abrir_form_nuevo_reporte(page: ft.Page):
         border_color=COLOR_BORDE,
         focused_border_color=COLOR_PRIMARIO,
         border_radius=RADIO,
+        color=COLOR_TEXTO,
         content_padding=_CAMPO_PADDING,
     )
 
@@ -1796,9 +1815,30 @@ def abrir_form_nuevo_reporte(page: ft.Page):
     )
 
     def on_crear(_):
+        if not all([titulo_inc.value, desc.value, brigada.value, ubicacion.value, prioridad.value]):
+            page.snack_bar = ft.SnackBar(ft.Text("Por favor complete todos los campos", color=COLOR_TEXTO), bgcolor=COLOR_CARD)
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        crud_reporte.crear_reporte(
+            titulo=titulo_inc.value, 
+            descripcion=desc.value, 
+            ubicacion=ubicacion.value, 
+            prioridad=prioridad.value, 
+            brigada_id=int(brigada.value)
+        )
+        
         page.pop_dialog()
-        page.snack_bar = ft.SnackBar(ft.Text("Reporte creado (pendiente conectar BD)"))
+        page.snack_bar = ft.SnackBar(ft.Text("Reporte creado con éxito", color="white"), bgcolor=COLOR_PRIMARIO)
         page.snack_bar.open = True
+        
+        # Intentar refrescar la pantalla de reportes si estamos ahí
+        for control in page.controls:
+            if hasattr(control, "data") and control.data == "screen_reports":
+                # La pantalla principal debe pasarse esta función en caso de recarga
+                pass # Por simplicidad recargamos mediante callback o el usuario puede darle refresh
+        
         page.update()
 
     dialogo = ft.AlertDialog(

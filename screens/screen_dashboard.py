@@ -36,7 +36,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
             card_kpi("Total Brigadas", stats.get("total_brigadas", 0), ft.Icons.SHIELD_MOON, ft.Colors.BLUE),
             card_kpi("Total Usuarios", stats.get("total_usuarios", 0), ft.Icons.PEOPLE, ft.Colors.ORANGE),
             card_kpi("Actividades Activas", stats.get("actividades_activas", 0), ft.Icons.LOCAL_ACTIVITY, ft.Colors.GREEN),
-            card_kpi("Impacto Ambiental", f"{stats.get('impacto_global', 0)} kg", ft.Icons.ECO, ft.Colors.TEAL),
+            card_kpi("Completadas", stats.get("actividades_completadas", 0), ft.Icons.CHECK_CIRCLE, ft.Colors.TEAL),
         ],
         spacing=20,
         alignment=ft.MainAxisAlignment.START,
