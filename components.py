@@ -49,6 +49,8 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         screen_statistics,
         screen_content,
         screen_activities,
+        screen_reports_impact,
+        screen_reports_activities,
     )
 
     items = [
@@ -57,7 +59,9 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, screen_activities.build),
         ("Brigadistas", ft.Icons.PEOPLE_OUTLINED, screen_brigadistas.build),
         ("Turnos y Horarios", ft.Icons.CALENDAR_MONTH_OUTLINED, screen_shifts.build),
+        ("Reportes de Impacto", ft.Icons.PUBLIC, screen_reports_impact.build),
         ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, screen_reports.build),
+        ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, screen_reports_activities.build),
         ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, screen_statistics.build),
         ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, screen_content.build),
     ]
@@ -67,7 +71,6 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         activo = sel == label
         bg = COLOR_SIDEBAR_ACTIVO if activo else "transparent"
         color_txt = COLOR_SIDEBAR_TEXTO if activo else COLOR_SIDEBAR_TEXTO_SEC
-        # Subrayado del ítem activo: borde izquierdo en verde claro
         borde_activo = ft.Border(left=ft.BorderSide(3, COLOR_PRIMARIO_CLARO)) if activo else None
         nav_items.append(
             ft.Container(
@@ -87,8 +90,6 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
                 data=label,
             )
         )
-
-    # Modo interfaz: Día / Noche (cambia page.theme_mode)
     def _aplicar_modo_dia(e):
         e.page.theme_mode = ft.ThemeMode.LIGHT
         e.page.update()

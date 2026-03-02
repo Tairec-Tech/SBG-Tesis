@@ -214,11 +214,14 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
 
     async def animate_background():
         while True:
-            icon_key.animate_float()
-            for p in particulas_animadas:
-                p.animate_float()
-            if page.controls:
-                page.update()
+            try:
+                icon_key.animate_float()
+                for p in particulas_animadas:
+                    p.animate_float()
+                if page.controls:
+                    page.update()
+            except Exception:
+                break
             await asyncio.sleep(2.1)
 
     page.run_task(animate_background)

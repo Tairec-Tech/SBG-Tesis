@@ -105,6 +105,39 @@ CREATE TABLE `reporte_de_impacto` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `reporte_incidente`
+--
+
+CREATE TABLE `reporte_incidente` (
+  `idReporte` int(11) NOT NULL,
+  `titulo` varchar(100) NOT NULL,
+  `descripcion` text NOT NULL,
+  `ubicacion` varchar(200) NOT NULL,
+  `prioridad` varchar(50) NOT NULL,
+  `estado` varchar(50) NOT NULL DEFAULT 'En Proceso',
+  `Brigada_idBrigada` int(11) NOT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `reporte_actividad`
+--
+
+CREATE TABLE `reporte_actividad` (
+  `idReporte_actividad` int(11) NOT NULL,
+  `resumen` text NOT NULL,
+  `resultado` varchar(100) NOT NULL,
+  `Actividad_idActividad` int(11) NOT NULL,
+  `Usuario_idUsuario` int(11) NOT NULL,
+  `fecha_reporte` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `usuario`
 --
 
@@ -178,6 +211,21 @@ ALTER TABLE `reporte_de_impacto`
   ADD KEY `fk_Reporte_de_impacto_Usuario1_idx` (`Usuario_idUsuario`);
 
 --
+-- Indices de la tabla `reporte_incidente`
+--
+ALTER TABLE `reporte_incidente`
+  ADD PRIMARY KEY (`idReporte`),
+  ADD KEY `fk_reporte_brigada_idx` (`Brigada_idBrigada`);
+
+--
+-- Indices de la tabla `reporte_actividad`
+--
+ALTER TABLE `reporte_actividad`
+  ADD PRIMARY KEY (`idReporte_actividad`),
+  ADD KEY `fk_reporte_act_actividad_idx` (`Actividad_idActividad`),
+  ADD KEY `fk_reporte_act_usuario_idx` (`Usuario_idUsuario`);
+
+--
 -- Indices de la tabla `usuario`
 --
 ALTER TABLE `usuario`
@@ -222,6 +270,18 @@ ALTER TABLE `reporte_de_impacto`
   MODIFY `idReporte_impacto` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `reporte_incidente`
+--
+ALTER TABLE `reporte_incidente`
+  MODIFY `idReporte` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `reporte_actividad`
+--
+ALTER TABLE `reporte_actividad`
+  MODIFY `idReporte_actividad` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `usuario`
 --
 ALTER TABLE `usuario`
@@ -255,6 +315,19 @@ ALTER TABLE `indicador_ambiental`
 ALTER TABLE `reporte_de_impacto`
   ADD CONSTRAINT `fk_Reporte_de_impacto_Actividad1` FOREIGN KEY (`Actividad_idActividad`) REFERENCES `actividad` (`idActividad`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   ADD CONSTRAINT `fk_Reporte_de_impacto_Usuario1` FOREIGN KEY (`Usuario_idUsuario`) REFERENCES `usuario` (`idUsuario`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Filtros para la tabla `reporte_incidente`
+--
+ALTER TABLE `reporte_incidente`
+  ADD CONSTRAINT `fk_reporte_incidente_brigada` FOREIGN KEY (`Brigada_idBrigada`) REFERENCES `brigada` (`idBrigada`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+--
+-- Filtros para la tabla `reporte_actividad`
+--
+ALTER TABLE `reporte_actividad`
+  ADD CONSTRAINT `fk_rep_act_actividad` FOREIGN KEY (`Actividad_idActividad`) REFERENCES `actividad` (`idActividad`) ON DELETE CASCADE ON UPDATE NO ACTION,
+  ADD CONSTRAINT `fk_rep_act_usuario` FOREIGN KEY (`Usuario_idUsuario`) REFERENCES `usuario` (`idUsuario`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 --
 -- Filtros para la tabla `usuario`

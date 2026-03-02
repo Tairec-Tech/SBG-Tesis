@@ -92,3 +92,91 @@ def get_reporte_stats():
     except Exception as e:
         print(f"Error stats reporte: {e}")
     return stats
+
+# ==========================================================
+# REPORTES DE ACTIVIDADES
+# ==========================================================
+
+def listar_reportes_actividad():
+    """Obtiene los reportes de actividades cruzados con el título de la actividad y usuario."""
+    sql = """
+    SELECT 
+        r.idReporte_actividad, 
+        r.resumen, 
+        r.resultado, 
+        r.fecha_reporte,
+        a.titulo AS actividad_titulo, 
+        a.fecha_inicio AS actividad_fecha,
+        u.nombre, u.apellido
+    FROM reporte_actividad r
+    LEFT JOIN actividad a ON r.Actividad_idActividad = a.idActividad
+    LEFT JOIN usuario u ON r.Usuario_idUsuario = u.idUsuario
+    ORDER BY r.fecha_reporte DESC
+    """
+    rows, _ = ejecutar(sql)
+    reportes = []
+    for r in rows:
+        reportes.append({
+            "id": r[0],
+            "resumen": r[1],
+            "resultado": r[2],
+            "fecha_reporte": r[3],
+            "actividad_titulo": r[4] or "Desconocida",
+            "actividad_fecha": r[5],
+            "usuario_nombre": f"{r[6] or ''} {r[7] or ''}".strip() or "Sistema"
+        })
+    return reportes
+
+def crear_reporte_actividad(resumen: str, resultado: str, actividad_id: int, usuario_id: int) -> int | None:
+    sql = """
+    INSERT INTO reporte_actividad (resumen, resultado, Actividad_idActividad, Usuario_idUsuario)
+    VALUES (%s, %s, %s, %s)
+    """
+    try:
+        lid = ejecutar(sql, (resumen, resultado, actividad_id, usuario_id), commit=True)
+        return lid
+    except Exception as e:
+        print(f"Error creando reporte actividad: {e}")
+        return None
+
+# ==========================================================
+# REPORTES DE IMPACTO
+# ==========================================================
+
+def listar_reportes_impacto():
+    """Obtiene los reportes de impacto cruzados con la actividad y usuario."""
+    sql = """
+    SELECT 
+        i.idReporte_impacto, 
+        i.contenido, 
+        i.fecha_generacion,
+        a.titulo AS actividad_titulo,
+        u.nombre, u.apellido
+    FROM reporte_de_impacto i
+    LEFT JOIN actividad a ON i.Actividad_idActividad = a.idActividad
+    LEFT JOIN usuario u ON i.Usuario_idUsuario = u.idUsuario
+    ORDER BY i.fecha_generacion DESC
+    """
+    rows, _ = ejecutar(sql)
+    reportes = []
+    for r in rows:
+        reportes.append({
+            "id": r[0],
+            "contenido": r[1],
+            "fecha_generacion": r[2],
+            "actividad_titulo": r[3] or "Desconocida",
+            "usuario_nombre": f"{r[4] or ''} {r[5] or ''}".strip() or "Sistema"
+        })
+    return reportes
+
+def crear_reporte_impacto(contenido: str, actividad_id: int, usuario_id: int) -> int | None:
+    sql = """
+    INSERT INTO reporte_de_impacto (contenido, Actividad_idActividad, Usuario_idUsuario)
+    VALUES (%s, %s, %s)
+    """
+    try:
+        lid = ejecutar(sql, (contenido, actividad_id, usuario_id), commit=True)
+        return lid
+    except Exception as e:
+        print(f"Error creando reporte impacto: {e}")
+        return None

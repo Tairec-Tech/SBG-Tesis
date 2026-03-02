@@ -35,3 +35,20 @@ def crear_actividad(titulo, descripcion, fecha_inicio, fecha_fin, estado, id_bri
     except Exception as e:
         print(f"Error creando actividad: {e}")
         return None
+
+def listar_actividades():
+    """Retorna todas las actividades registradas (id, titulo, estado)."""
+    sql = """
+        SELECT idActividad as id, titulo, estado
+        FROM actividad
+        ORDER BY fecha_inicio DESC
+    """
+    try:
+        rows, description = ejecutar(sql)
+        if not rows:
+            return []
+        columnas = [col[0] for col in description]
+        return [dict(zip(columnas, fila)) for fila in rows]
+    except Exception as e:
+        print(f"Error listando actividades: {e}")
+        return []

@@ -498,12 +498,15 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
 
     async def animate_background():
         while True:
-            icon_house.animate_float()
-            icon_people.animate_float()
-            for p in particulas_animadas:
-                p.animate_float()
-            if page.controls:
-                page.update()
+            try:
+                icon_house.animate_float()
+                icon_people.animate_float()
+                for p in particulas_animadas:
+                    p.animate_float()
+                if page.controls:
+                    page.update()
+            except Exception:
+                break
             await asyncio.sleep(2.1)
 
     page.run_task(animate_background)

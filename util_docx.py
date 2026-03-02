@@ -127,3 +127,149 @@ def generar_reporte_docx(reporte: dict, save_path: str = None) -> str | None:
     except Exception as e:
         print(f"Error generando DOCX: {e}")
         return None
+
+# =====================================================================
+# REPORTES DE ACTIVIDADES (DOCX)
+# =====================================================================
+
+def generar_reporte_actividad_docx(reporte: dict, save_path: str = None) -> str | None:
+    """Genera un reporte DOCX para las Actividades (Jornadas Ambientales)."""
+    if Document is None: return None
+    try:
+        doc = Document()
+        doc.styles['Normal'].font.name = 'Calibri'
+        doc.styles['Normal'].font.size = Pt(11)
+
+        # Encabezado
+        header = doc.add_paragraph()
+        header.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_h = header.add_run("SISTEMA DE BRIGADAS AMBIENTALES\n")
+        run_h.bold = True
+        run_h.font.size = Pt(16)
+        run_h.font.color.rgb = RGBColor(0x05, 0x96, 0x69)
+        
+        run_sub = header.add_run("REPORTE OFICIAL DE ACTIVIDAD / JORNADA")
+        run_sub.bold = True
+        run_sub.font.size = Pt(14)
+        doc.add_paragraph("_" * 70).alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph()
+
+        # Datos Generales
+        fecha_dt = reporte.get('fecha_reporte')
+        fecha_str = fecha_dt.strftime("%d/%m/%Y %H:%M") if hasattr(fecha_dt, 'strftime') else str(fecha_dt)
+        act_dt = reporte.get('actividad_fecha')
+        act_str = act_dt.strftime("%d/%m/%Y") if hasattr(act_dt, 'strftime') else str(act_dt)
+
+        p_info = doc.add_paragraph()
+        p_info.add_run("ID Reporte: ").bold = True
+        p_info.add_run(f"ACT-{reporte.get('id', 'N/A')}\n")
+        p_info.add_run("Fecha de Emisión: ").bold = True
+        p_info.add_run(f"{fecha_str}\n")
+        p_info.add_run("Reportado Por: ").bold = True
+        p_info.add_run(f"{reporte.get('usuario_nombre', 'N/A')}\n")
+        doc.add_paragraph()
+
+        # Detalles de la Jornada
+        doc.add_heading('Detalles de la Jornada', level=2)
+        p_det = doc.add_paragraph()
+        p_det.add_run("Actividad: ").bold = True
+        p_det.add_run(f"{reporte.get('actividad_titulo', 'N/A')}\n")
+        p_det.add_run("Fecha de Ejecución: ").bold = True
+        p_det.add_run(f"{act_str}\n")
+        p_det.add_run("Resultado General: ").bold = True
+        p_det.add_run(f"{reporte.get('resultado', 'N/A')}\n")
+
+        # Resumen
+        doc.add_heading('Resumen y Observaciones', level=2)
+        p_res = doc.add_paragraph(reporte.get('resumen', 'Sin detalles adicionles.'))
+        p_res.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        doc.add_paragraph()
+        doc.add_paragraph("_" * 70).alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_firma = doc.add_paragraph("_____________________________\nFirma del Responsable / Coordinador")
+        p_firma.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        if not save_path:
+            filename = f"Reporte_Actividad_ACT-{reporte.get('id', 'X')}_{datetime.now().strftime('%Y%m%d')}.docx"
+            save_path = os.path.join(_get_downloads_folder(), filename)
+            counter = 1
+            while os.path.exists(save_path):
+                filename = f"Reporte_Actividad_ACT-{reporte.get('id', 'X')}_{datetime.now().strftime('%Y%m%d')}_{counter}.docx"
+                save_path = os.path.join(_get_downloads_folder(), filename)
+                counter += 1
+
+        doc.save(save_path)
+        return save_path
+    except Exception as e:
+        print(f"Error generando DOCX de Actividad: {e}")
+        return None
+
+# =====================================================================
+# REPORTES DE IMPACTO (DOCX)
+# =====================================================================
+
+def generar_reporte_impacto_docx(reporte: dict, save_path: str = None) -> str | None:
+    """Genera un reporte DOCX para Evalución de Impacto."""
+    if Document is None: return None
+    try:
+        doc = Document()
+        doc.styles['Normal'].font.name = 'Calibri'
+        doc.styles['Normal'].font.size = Pt(11)
+
+        # Encabezado
+        header = doc.add_paragraph()
+        header.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_h = header.add_run("SISTEMA DE BRIGADAS AMBIENTALES\n")
+        run_h.bold = True
+        run_h.font.size = Pt(16)
+        run_h.font.color.rgb = RGBColor(0x05, 0x96, 0x69)
+        
+        run_sub = header.add_run("EVALUACIÓN DE IMPACTO AMBIENTAL")
+        run_sub.bold = True
+        run_sub.font.size = Pt(14)
+        doc.add_paragraph("_" * 70).alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph()
+
+        # Datos Generales
+        fecha_dt = reporte.get('fecha_generacion')
+        fecha_str = fecha_dt.strftime("%d/%m/%Y %H:%M") if hasattr(fecha_dt, 'strftime') else str(fecha_dt)
+
+        p_info = doc.add_paragraph()
+        p_info.add_run("ID Evaluación: ").bold = True
+        p_info.add_run(f"IMP-{reporte.get('id', 'N/A')}\n")
+        p_info.add_run("Fecha de Evaluación: ").bold = True
+        p_info.add_run(f"{fecha_str}\n")
+        p_info.add_run("Evaluador Principal: ").bold = True
+        p_info.add_run(f"{reporte.get('usuario_nombre', 'N/A')}\n")
+        doc.add_paragraph()
+
+        # Detalles del impacto
+        doc.add_heading('Contexto de la Evaluación', level=2)
+        p_det = doc.add_paragraph()
+        p_det.add_run("Actividad Evaluada: ").bold = True
+        p_det.add_run(f"{reporte.get('actividad_titulo', 'N/A')}\n")
+
+        # Contenido Analítico
+        doc.add_heading('Análisis y Conclusiones del Impacto', level=2)
+        p_cnt = doc.add_paragraph(reporte.get('contenido', 'No hay análisis suministrado.'))
+        p_cnt.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        doc.add_paragraph()
+        doc.add_paragraph("_" * 70).alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_firma = doc.add_paragraph("_____________________________\nFirma del Evaluador Ambiental")
+        p_firma.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        if not save_path:
+            filename = f"Evaluacion_Impacto_IMP-{reporte.get('id', 'X')}_{datetime.now().strftime('%Y%m%d')}.docx"
+            save_path = os.path.join(_get_downloads_folder(), filename)
+            counter = 1
+            while os.path.exists(save_path):
+                filename = f"Evaluacion_Impacto_IMP-{reporte.get('id', 'X')}_{datetime.now().strftime('%Y%m%d')}_{counter}.docx"
+                save_path = os.path.join(_get_downloads_folder(), filename)
+                counter += 1
+
+        doc.save(save_path)
+        return save_path
+    except Exception as e:
+        print(f"Error generando DOCX de Impacto: {e}")
+        return None

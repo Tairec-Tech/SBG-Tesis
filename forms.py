@@ -1857,3 +1857,151 @@ def abrir_form_nuevo_reporte(page: ft.Page):
         ],
     )
     page.show_dialog(dialogo)
+
+# ==============================================================================
+# FORMULARIOS: REPORTES DE ACTIVIDADES E IMPACTO
+# ==============================================================================
+
+def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_success_callback=None):
+    from database import crud_actividad, crud_reporte
+    
+    # Obtener actividades para el dropdown
+    actividades = crud_actividad.listar_actividades()
+    opciones_actividades = [ft.dropdown.Option(str(a["id"]), a["titulo"]) for a in actividades]
+    
+    actividad_dd = ft.Dropdown(
+        hint_text="Múltiples opciones disponibles",
+        hint_style=ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO)),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        options=opciones_actividades,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        border_radius=RADIO,
+        color=COLOR_TEXTO,
+        content_padding=_CAMPO_PADDING,
+    )
+    resumen = _campo_texto("Resumen de la Jornada", "Ej. Se recolectaron 50 bolsas de basura.", multiline=True)
+    resumen.min_lines = 3
+    resumen.max_lines = 5
+    resumen.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
+    
+    resultado = _campo_texto("Resultado Oficial", "Ej. Completado con éxito", multiline=True)
+    resultado.min_lines = 2
+    resultado.max_lines = 3
+    resultado.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
+    
+    contenido = ft.Column(
+        [
+            _campo_con_titulo("Actividad Realizada", actividad_dd),
+            _campo_con_titulo("Reporte Narrativo", resumen),
+            _campo_con_titulo("Estado Final (Resultado)", resultado, espaciado_abajo=0),
+        ],
+        spacing=0,
+    )
+
+    def on_crear(e):
+        if not actividad_dd.value or not resumen.value or not resultado.value:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Todos los campos son obligatorios."), bgcolor=ft.Colors.RED))
+            setattr(page.snack_bar, 'open', True)
+            page.update()
+            return
+            
+        print(f"DEBUG: Intentando crear reporte de actividad. Act: {actividad_dd.value}, Usu: {id_usuario_actual}")
+        lid = crud_reporte.crear_reporte_actividad(
+            resumen=resumen.value,
+            resultado=resultado.value,
+            actividad_id=int(actividad_dd.value),
+            usuario_id=id_usuario_actual
+        )
+        
+        if lid:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Reporte de actividad guardado correctamente."), bgcolor=ft.Colors.GREEN))
+            _cerrar_dialogo(page)
+            if on_success_callback: on_success_callback()
+        else:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Error en BD al guardar el reporte."), bgcolor=ft.Colors.RED))
+        
+        setattr(page.snack_bar, 'open', True)
+        page.update()
+
+    dialogo = ft.AlertDialog(
+        modal=True,
+        bgcolor=COLOR_CARD,
+        title=ft.Text("Nuevo Reporte de Actividad", size=18, weight="w600", color=COLOR_TEXTO),
+        content=ft.Container(
+            content=contenido, width=ANCHO_FORM, height=420, bgcolor=COLOR_CARD
+        ),
+        actions=[
+            ft.TextButton("Cancelar", on_click=lambda e: _cerrar_dialogo(page), style=ft.ButtonStyle(color=COLOR_TEXTO)),
+            ft.FilledButton("Guardar Reporte", on_click=on_crear, style=ft.ButtonStyle(bgcolor=COLOR_PRIMARIO, color="white")),
+        ],
+    )
+    page.show_dialog(dialogo)
+
+def modal_nuevo_reporte_impacto(page: ft.Page, id_usuario_actual: int, on_success_callback=None):
+    from database import crud_actividad, crud_reporte
+    
+    actividades = crud_actividad.listar_actividades()
+    opciones_actividades = [ft.dropdown.Option(str(a["id"]), a["titulo"]) for a in actividades]
+    
+    actividad_dd = ft.Dropdown(
+        hint_text="Seleccione la actividad analizada",
+        hint_style=ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO)),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        options=opciones_actividades,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        border_radius=RADIO,
+        color=COLOR_TEXTO,
+        content_padding=_CAMPO_PADDING,
+    )
+    contenido_txt = _campo_texto("Análisis de Impacto", "Escriba la evaluación ambiental profunda aquí...", multiline=True)
+    # Hacerlo más grande y oscurecer el placeholder
+    contenido_txt.min_lines = 5
+    contenido_txt.max_lines = 8
+    contenido_txt.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
+    
+    contenido_modal = ft.Column(
+        [
+            _campo_con_titulo("Actividad a la que pertenece este análisis", actividad_dd),
+            _campo_con_titulo("Contenido Medioambiental", contenido_txt, espaciado_abajo=0),
+        ],
+        spacing=0,
+    )
+
+    def on_crear(e):
+        if not actividad_dd.value or not contenido_txt.value:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("El análisis y la actividad no pueden estar vacíos."), bgcolor=ft.Colors.RED))
+            setattr(page.snack_bar, 'open', True)
+            page.update()
+            return
+
+        lid = crud_reporte.crear_reporte_impacto(
+            contenido=contenido_txt.value,
+            actividad_id=int(actividad_dd.value),
+            usuario_id=id_usuario_actual
+        )
+        
+        if lid:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Análisis de impacto guardado correctamente."), bgcolor=ft.Colors.GREEN))
+            _cerrar_dialogo(page)
+            if on_success_callback: on_success_callback()
+        else:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Error en BD al guardar el análisis."), bgcolor=ft.Colors.RED))
+        
+        setattr(page.snack_bar, 'open', True)
+        page.update()
+
+    dialogo = ft.AlertDialog(
+        modal=True,
+        bgcolor=COLOR_CARD,
+        title=ft.Text("Nuevo Análisis de Impacto", size=18, weight="w600", color=COLOR_TEXTO),
+        content=ft.Container(
+            content=contenido_modal, width=ANCHO_FORM, height=420, bgcolor=COLOR_CARD
+        ),
+        actions=[
+            ft.TextButton("Cancelar", on_click=lambda e: _cerrar_dialogo(page), style=ft.ButtonStyle(color=COLOR_TEXTO)),
+            ft.FilledButton("Guardar Análisis", on_click=on_crear, style=ft.ButtonStyle(bgcolor=COLOR_PRIMARIO, color="white")),
+        ],
+    )
+    page.show_dialog(dialogo)
