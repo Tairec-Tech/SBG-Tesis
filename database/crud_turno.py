@@ -40,7 +40,7 @@ def crear_turno(brigada_id: int, fecha: str, hora_inicio: str, hora_fin: str,
     VALUES (%s, %s, %s, %s, %s, %s)
     """
     try:
-        _, lid = ejecutar(sql, (brigada_id, fecha, hora_inicio, hora_fin, ubicacion, notas), commit=True)
+        lid = ejecutar(sql, (brigada_id, fecha, hora_inicio, hora_fin, ubicacion, notas), commit=True)
         return lid
     except Exception as e:
         print(f"Error creando turno: {e}")

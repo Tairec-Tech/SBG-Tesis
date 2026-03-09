@@ -520,6 +520,21 @@ def eliminar_usuario(id_usuario: int) -> str | None:
         conn.close()
 
 
+def resetear_contrasena(email: str, nueva_contrasena_plana: str) -> bool:
+    """Resetea la contraseña de un usuario por email. Retorna True si se actualizó, False si no existe."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE Usuario SET contrasena = %s WHERE email = %s",
+            (hash_password(nueva_contrasena_plana), email.strip().lower()),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 # =====================================================
 # ROLES Y PERMISOS
 # =====================================================

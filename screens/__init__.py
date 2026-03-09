@@ -11,6 +11,11 @@ from screens import (
     screen_login,
     screen_register,
     screen_recovery,
+    screen_about,
+    screen_manual,
+    screen_legal,
+    screen_backup,
+    screen_utilidades,
 )
 
 __all__ = [
@@ -24,4 +29,9 @@ __all__ = [
     "screen_login",
     "screen_register",
     "screen_recovery",
+    "screen_about",
+    "screen_manual",
+    "screen_legal",
+    "screen_backup",
+    "screen_utilidades",
 ]

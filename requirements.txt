@@ -1,5 +1,6 @@
-flet
-flet-charts
+flet==0.80.5
+flet-charts==0.80.5
 mysql-connector-python
 Pillow
 python-dotenv
+python-docx

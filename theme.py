@@ -46,13 +46,34 @@ TEMA_CLARO = ft.Theme(
         inverse_primary="#10b981",
     ),
     use_material3=True,
+    date_picker_theme=ft.DatePickerTheme(
+        bgcolor="#ffffff",                         # Fondo blanco para el contenedor
+        header_bgcolor="#059669",                  # Encabezado verde principal
+        header_foreground_color="white",           # Texto del encabezado en blanco
+        day_foreground_color="#1e293b",            # Días normales en gris oscuro (legible)
+        today_foreground_color="white",            # El número de hoy en blanco
+        today_bgcolor="#059669",                   # El círculo de hoy en verde principal
+        shadow_color="transparent",
+    ),
+    time_picker_theme=ft.TimePickerTheme(
+        bgcolor="#ffffff",                         # Fondo blanco
+        dial_bgcolor="#d1fae5",                    # Fondo del reloj (verde muy suave)
+        dial_hand_color="#059669",                 # Manecilla del reloj
+        dial_text_color="#1e293b",                 # Números del reloj en oscuro
+        hour_minute_color="#d1fae5",               # Cajas de hora/minuto
+        hour_minute_text_color="#1e293b",          # Texto de hora/minuto
+        day_period_color="#d1fae5",                # Botón AM/PM
+        day_period_text_color="#1e293b",           # Texto AM/PM
+        entry_mode_icon_color="#059669",           # Ícono del teclado
+        time_selector_separator_color="#059669",   # Los dos puntos ":"
+    ),
 )
 
 TEMA_OSCURO = ft.Theme(
     color_scheme=ft.ColorScheme(
         primary="#10b981",                    # Emerald-500 (más brillante)
         primary_container="#064e3b",          # Emerald-900
-        on_primary="#022c22",
+        on_primary="white",
         on_primary_container="#a7f3d0",
         secondary="#34d399",                  # Emerald-400
         secondary_container="#065f46",
@@ -78,6 +99,27 @@ TEMA_OSCURO = ft.Theme(
         inverse_primary="#059669",
     ),
     use_material3=True,
+    date_picker_theme=ft.DatePickerTheme(
+        bgcolor="#131f1a",                         # Fondo oscuro (igual a las tarjetas)
+        header_bgcolor="#064e3b",                  # Encabezado verde muy oscuro
+        header_foreground_color="white",           # Texto del encabezado en blanco
+        day_foreground_color="#ecfdf5",            # Días en color claro (legible)
+        today_foreground_color="white",            # Texto de hoy en blanco
+        today_bgcolor="#10b981",                   # Círculo de hoy en verde brillante
+        shadow_color="transparent",
+    ),
+    time_picker_theme=ft.TimePickerTheme(
+        bgcolor="#131f1a",                         # Fondo oscuro
+        dial_bgcolor="#064e3b",                    # Dial del reloj en verde oscuro
+        dial_hand_color="#10b981",                 # Manecilla en verde brillante
+        dial_text_color="#ecfdf5",                 # Números del reloj en claro
+        hour_minute_color="#064e3b",               # Cajas de hora/minuto oscuro
+        hour_minute_text_color="#ecfdf5",          # Texto de hora/minuto claro
+        day_period_color="#064e3b",                # Botón AM/PM oscuro
+        day_period_text_color="#ecfdf5",           # Texto AM/PM claro
+        entry_mode_icon_color="#10b981",           # Ícono del teclado brillante
+        time_selector_separator_color="#10b981",   # Los dos puntos ":"
+    ),
 )
 
 # --- Constantes Dinámicas (Flet resuelve según ThemeMode) ---

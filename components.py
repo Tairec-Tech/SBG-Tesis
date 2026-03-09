@@ -51,6 +51,7 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         screen_activities,
         screen_reports_impact,
         screen_reports_activities,
+        screen_utilidades,
     )
 
     items = [
@@ -64,6 +65,7 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, screen_reports_activities.build),
         ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, screen_statistics.build),
         ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, screen_content.build),
+        ("Utilidades", ft.Icons.BUILD_OUTLINED, screen_utilidades.build),
     ]
 
     nav_items = []

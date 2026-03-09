@@ -1,5 +1,7 @@
 import asyncio
 import flet as ft
+import string
+import random
 from auth_theme_toggle import create_auth_theme_toggle
 from theme import (
     COLOR_PRIMARIO,
@@ -83,6 +85,12 @@ class FloatingElement(ft.Container):
         self.floating_phase = not self.floating_phase
 
 
+def _generar_contrasena_temporal(longitud=8) -> str:
+    """Genera una contraseña temporal alfanumérica."""
+    chars = string.ascii_letters + string.digits
+    return "".join(random.choices(chars, k=longitud))
+
+
 def build(page: ft.Page, on_back_to_login) -> ft.Control:
     campo_email = ft.TextField(
         label="Correo Electrónico",
@@ -97,9 +105,61 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     )
 
     def on_recuperar(_):
-        page.snack_bar = ft.SnackBar(ft.Text("Si el correo existe, recibirá instrucciones (pendiente conectar BD)."))
-        page.snack_bar.open = True
-        page.update()
+        email = (campo_email.value or "").strip()
+        if not email:
+            page.snack_bar = ft.SnackBar(ft.Text("Ingrese un correo electrónico."), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        try:
+            from database.crud_usuario import buscar_usuario_por_email, resetear_contrasena
+
+            usuario = buscar_usuario_por_email(email)
+            if not usuario:
+                # Mensaje genérico por seguridad (no revelar si el email existe)
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("Si el correo está registrado, se generará una nueva contraseña."),
+                    bgcolor=COLOR_PRIMARIO,
+                )
+                page.snack_bar.open = True
+                page.update()
+                return
+
+            # Generar contraseña temporal y actualizarla en BD
+            temp_pass = _generar_contrasena_temporal()
+            resetear_contrasena(email, temp_pass)
+
+            # Mostrar la contraseña temporal al usuario
+            page.snack_bar = ft.SnackBar(
+                content=ft.Column(
+                    [
+                        ft.Text("✅ Contraseña restablecida", weight="bold", color="white", size=14),
+                        ft.Text(f"Su nueva contraseña temporal es:", color="white", size=13),
+                        ft.Container(
+                            content=ft.Text(temp_pass, size=18, weight="bold", color="white", selectable=True),
+                            bgcolor=ft.Colors.with_opacity(0.3, "white"),
+                            padding=ft.Padding.symmetric(vertical=8, horizontal=16),
+                            border_radius=8,
+                        ),
+                        ft.Text("Cámbiela después de iniciar sesión.", color="white", size=12, italic=True),
+                    ],
+                    spacing=6,
+                    horizontal_alignment=ft.CrossAxisAlignment.START,
+                ),
+                bgcolor="#059669",
+                duration=15000,  # 15 segundos para que pueda copiarla
+            )
+            page.snack_bar.open = True
+            page.update()
+
+        except Exception as e:
+            page.snack_bar = ft.SnackBar(
+                ft.Text(f"Error: {e}"),
+                bgcolor="#ef4444",
+            )
+            page.snack_bar.open = True
+            page.update()
 
     header = ft.Column(
         [
