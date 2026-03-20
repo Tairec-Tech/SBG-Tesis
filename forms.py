@@ -532,6 +532,7 @@ def abrir_form_brigada_registrar(page: ft.Page, on_success=None, usuario_actual=
                 pass
         institucion_id = usuario_actual.get("institucion_id") or 1
         try:
+            _tb = (page.data or {}).get("brigada_activa", "ecologica")
             insertar_brigada(
                 nombre=nombre.value.strip(),
                 descripcion=descripcion.value or None,
@@ -540,6 +541,7 @@ def abrir_form_brigada_registrar(page: ft.Page, on_success=None, usuario_actual=
                 institucion_id=institucion_id,
                 profesor_id=profesor_id,
                 subjefe_id=subjefe_id,
+                tipo_brigada=_tb,
             )
             _cerrar_dialogo(page)
             page.snack_bar = ft.SnackBar(ft.Text("¡Brigada creada correctamente!"), bgcolor="#22c55e")
@@ -936,7 +938,7 @@ def abrir_form_brigadista_registrar(page: ft.Page, on_success=None):
     )
     brigadas_opciones = []
     try:
-        for b in listar_brigadas():
+        for b in listar_brigadas((page.data or {}).get("brigada_activa")):
             brigadas_opciones.append(ft.dropdown.Option(str(b["idBrigada"]), b["nombre_brigada"] or f"Brigada {b['idBrigada']}"))
     except Exception:
         pass
@@ -1063,7 +1065,7 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
     )
     brigadas_opciones = []
     try:
-        for b in listar_brigadas():
+        for b in listar_brigadas((page.data or {}).get("brigada_activa")):
             brigadas_opciones.append(ft.dropdown.Option(str(b["idBrigada"]), b["nombre_brigada"] or f"Brigada {b['idBrigada']}"))
     except Exception:
         pass
@@ -1678,7 +1680,7 @@ def abrir_form_turno(page: ft.Page):
     from datetime import datetime, date, time
 
     # ── Dropdown de brigadas reales ──
-    brigadas_bd = listar_brigadas()
+    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"))
     opciones_brigadas = [ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]) for bg in brigadas_bd]
 
     brigada = ft.Dropdown(
@@ -1939,7 +1941,7 @@ def abrir_form_nuevo_reporte(page: ft.Page):
     import database.crud_reporte as crud_reporte
     
     # Cargar brigadas reales
-    brigadas_bd = listar_brigadas()
+    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"))
     opciones_brigadas = []
     for bg in brigadas_bd:
         opciones_brigadas.append(ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]))

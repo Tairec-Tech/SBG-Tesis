@@ -26,9 +26,10 @@ import database.crud_actividad as crud_act
 
 
 def build(page: ft.Page, **kwargs) -> ft.Control:
-    # 1. Obtener datos
-    stats = crud_dash.get_kpi_stats()
-    actividades = crud_act.obtener_actividades_recientes(5)
+    # 1. Obtener datos (filtrados por tipo de brigada activa)
+    _tb = (page.data or {}).get("brigada_activa")
+    stats = crud_dash.get_kpi_stats(_tb)
+    actividades = crud_act.obtener_actividades_recientes(5, tipo_brigada=_tb)
     
     # 2. Sección KPIs
     fila_kpis = ft.Row(

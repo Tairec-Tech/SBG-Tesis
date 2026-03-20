@@ -1,7 +1,8 @@
 """
-Sistema de Brigadas Escolares — Brigadas Ambientales (Municipio Maracaibo).
-Flujo: intro (bloques SGB en verde) → Login / Registrar / Recuperar → App (sidebar + contenido).
-Tema: tonos verdes (brigadas ambientales).
+Sistema de Brigadas Escolares — Multi-Brigada (Municipio Maracaibo).
+Flujo: intro (bloques SGB neutros) → Login (neutro) → Selección de Brigada (2×2)
+       → Transición (color de brigada) → App (sidebar + contenido).
+Soporta 4 tipos: Gestión de Riesgo, Patrulla Escolar, Convivencia y Paz, Ecológica.
 """
 
 import asyncio
@@ -13,7 +14,6 @@ import flet as ft
 
 from util_log import log
 
-# Para ver mensajes aunque la terminal no muestre nada: abre sbg_log.txt en esta carpeta
 log("--- App SBG iniciando ---")
 sys.stdout.flush()
 sys.stderr.flush()
@@ -21,35 +21,33 @@ sys.stderr.flush()
 from theme import (
     TEMA_CLARO,
     TEMA_OSCURO,
-    HEX_FONDO_VERDE,
-    HEX_PRIMARIO_OSCURO,
-    HEX_PRIMARIO,
-    HEX_PRIMARIO_CLARO,
-    COLOR_FONDO_VERDE, # Dynamic
+    BRIGADAS,
+    aplicar_paleta,
+    aplicar_paleta_neutra,
+    HEX_NEUTRA_PRIMARIO,
+    HEX_NEUTRA_PRIMARIO_CLARO,
+    HEX_NEUTRA_PRIMARIO_OSCURO,
+    COLOR_FONDO_VERDE,
     COLOR_FONDO_GRADIENTE_INICIO,
 )
 from screens import screen_login, screen_register, screen_recovery
-from screens import screen_dashboard
+from screens import screen_dashboard, screen_brigade_select
 from components import build_sidebar
 
-# Cortina de transición (paleta verde)
-TRANSITION_VERDE = HEX_PRIMARIO
 TRANSITION_TEXT = "#FFFFFF"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGOS_DIR = os.path.join(BASE_DIR, "uploads", "logos")
 
-# Abreviaturas para bienvenida
 ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 
 
 async def main(page: ft.Page):
     log("Ventana principal abierta")
     page.title = "Sistema de Brigadas Escolares"
-    # Configuración de temas
-    page.theme = TEMA_CLARO
-    page.dark_theme = TEMA_OSCURO
+    # Iniciar con paleta neutra para la intro y login
+    aplicar_paleta_neutra(page)
     page.theme_mode = ft.ThemeMode.LIGHT
-    
+
     page.bgcolor = COLOR_FONDO_GRADIENTE_INICIO
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -57,12 +55,14 @@ async def main(page: ft.Page):
     page.window.maximized = True
     page.update()
 
-    # ----- Animación de entrada: bloques SGB (tonos verdes) -----
+    # ----- Animación de entrada: bloques SGB (tonos neutros) -----
     size_bloque = 14
     gap_bloque = 4
     duracion_anim = 1200
-    # Tres tonos verdes para S, G, B (brigadas ambientales)
-    c_s, c_g, c_b = HEX_PRIMARIO_OSCURO, HEX_PRIMARIO, HEX_PRIMARIO_CLARO
+    # Tres tonos neutros para S, G, B
+    c_s = HEX_NEUTRA_PRIMARIO_OSCURO
+    c_g = HEX_NEUTRA_PRIMARIO
+    c_b = HEX_NEUTRA_PRIMARIO_CLARO
     partes_sgb = [
         (0, 0, c_s), (1, 0, c_s), (2, 0, c_s), (0, 1, c_s), (0, 2, c_s), (1, 2, c_s), (2, 2, c_s), (2, 3, c_s), (0, 4, c_s), (1, 4, c_s), (2, 4, c_s),
         (4, 0, c_g), (5, 0, c_g), (6, 0, c_g), (4, 1, c_g), (4, 2, c_g), (5, 2, c_g), (6, 2, c_g), (4, 3, c_g), (6, 3, c_g), (4, 4, c_g), (5, 4, c_g), (6, 4, c_g),
@@ -70,10 +70,6 @@ async def main(page: ft.Page):
     ]
     ancho_canvas = 11 * (size_bloque + gap_bloque)
     alto_canvas = 5 * (size_bloque + gap_bloque)
-    animacion_entrada = ft.Animation(
-        duration=ft.Duration(milliseconds=600),
-        curve=ft.AnimationCurve.EASE_OUT_BACK,
-    )
     bloques_containers = [
         ft.Container(animate=duracion_anim, animate_position=duracion_anim, animate_rotation=duracion_anim)
         for _ in partes_sgb
@@ -129,30 +125,21 @@ async def main(page: ft.Page):
     vista_actual = ["Panel Principal"]
     content_area.content = screen_dashboard.build(page)
 
-    # Contenedor del sidebar para poder reconstruirlo al cambiar de vista
     sidebar_container = ft.Container()
-
-
-    # Vista principal: sidebar + contenido (solo se muestra tras login)
-    vista_principal = ft.Container(expand=True)  # .content se asigna tras refresh_sidebar
+    vista_principal = ft.Container(expand=True)
 
     def build_login_view():
         return screen_login.build(
             page,
-            on_login_success=ir_a_app,
+            on_login_success=ir_a_seleccion_brigada,
             on_go_register=ir_a_registro,
             on_go_recovery=ir_a_recuperar,
         )
 
-    # Un solo contenedor que cambia de contenido: login/registro/recuperar O app (sidebar+contenido)
     contenedor_principal = ft.Container(expand=True, alignment=ft.Alignment.CENTER)
 
-    # ----- Cortina de transición Login -> Dashboard (verde) -----
-    icon_success = ft.Icon(
-        ft.Icons.CHECK_CIRCLE_ROUNDED,
-        size=100,
-        color=TRANSITION_TEXT,
-    )
+    # ----- Cortina de transición Login -> Dashboard -----
+    icon_success = ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, size=100, color=TRANSITION_TEXT)
     icon_success_container = ft.Container(
         content=icon_success,
         scale=0,
@@ -169,7 +156,7 @@ async def main(page: ft.Page):
     )
     transition_overlay = ft.Container(
         expand=True,
-        bgcolor=TRANSITION_VERDE,
+        bgcolor=HEX_NEUTRA_PRIMARIO,  # Se cambiará al color de la brigada
         opacity=0,
         visible=False,
         animate_opacity=ft.Animation(500, ft.AnimationCurve.EASE_IN_OUT),
@@ -186,8 +173,7 @@ async def main(page: ft.Page):
     )
 
     async def animar_entrada_dashboard():
-        """Secuencia: cortina verde -> logo o icono (pop) -> texto bienvenida con abreviatura e institución -> cambio a app -> desvanecer."""
-        # Obtener datos del usuario para personalizar bienvenida
+        """Secuencia: cortina color brigada -> logo o icono (pop) -> texto bienvenida -> cambio a app -> desvanecer."""
         try:
             prefs = ft.SharedPreferences()
             data_str = await prefs.get("usuario_actual")
@@ -198,17 +184,23 @@ async def main(page: ft.Page):
         rol = data.get("rol", "")
         abrev = ABREV_ROL.get(rol, rol)
         inst_nombre = data.get("institucion_nombre", "Institución")
-        text_welcome.value = f"Bienvenido {abrev} {nombre} a la coordinación de brigadas de la institución {inst_nombre}"
 
-        # Mostrar logo de la institución (circular) si existe, si no el icono de check
+        # Nombre de la brigada activa
+        brigada_key = (page.data or {}).get("brigada_activa", "ecologica")
+        brigada_info = BRIGADAS.get(brigada_key, {})
+        brigada_nombre = brigada_info.get("nombre", "Brigada")
+
+        text_welcome.value = f"Bienvenido {abrev} {nombre}\n{brigada_nombre}\n{inst_nombre}"
+
+        # Color de transición = color primario de la brigada seleccionada
+        transition_overlay.bgcolor = brigada_info.get("hex_primario", HEX_NEUTRA_PRIMARIO)
+
         logo_ruta = data.get("institucion_logo_ruta")
         logo_path = os.path.join(LOGOS_DIR, logo_ruta) if logo_ruta else None
         if logo_path and os.path.isfile(logo_path):
             icon_success_container.content = ft.Container(
                 content=ft.Image(src=logo_path, width=100, height=100, fit=ft.BoxFit.COVER),
-                width=100,
-                height=100,
-                border_radius=50,
+                width=100, height=100, border_radius=50,
                 clip_behavior=ft.ClipBehavior.HARD_EDGE,
                 border=ft.Border.all(3, "white"),
             )
@@ -223,7 +215,6 @@ async def main(page: ft.Page):
         icon_success_container.scale = 1
         text_welcome.opacity = 1
         page.update()
-
         await asyncio.sleep(1.2)
 
         contenedor_principal.content = vista_principal
@@ -243,12 +234,32 @@ async def main(page: ft.Page):
     async def cerrar_sesion():
         prefs = ft.SharedPreferences()
         await prefs.remove("usuario_actual")
-        if getattr(page, "data", None) and "usuario_actual" in page.data:
-            del page.data["usuario_actual"]
+        if getattr(page, "data", None) and isinstance(page.data, dict):
+            page.data.pop("usuario_actual", None)
+            page.data.pop("brigada_activa", None)
+        aplicar_paleta_neutra(page)
         contenedor_principal.content = build_login_view()
         page.update()
 
-    def ir_a_app():
+    def ir_a_seleccion_brigada():
+        """Tras login exitoso: mostrar pantalla de selección de brigada."""
+        contenedor_principal.content = screen_brigade_select.build(
+            page,
+            on_select=on_brigada_seleccionada,
+        )
+        page.update()
+
+    def on_brigada_seleccionada(brigada_key: str):
+        """Usuario seleccionó una brigada → aplicar paleta → transición → dashboard."""
+        if not isinstance(page.data, dict):
+            page.data = {}
+        page.data["brigada_activa"] = brigada_key
+        aplicar_paleta(page, brigada_key)
+        # Reconstruir content area con el nuevo tema
+        content_area.bgcolor = COLOR_FONDO_VERDE
+        content_area.content = screen_dashboard.build(page)
+        vista_principal.content = ft.Row([sidebar_container, content_area], expand=True)
+        page.run_task(refresh_sidebar)
         page.run_task(animar_entrada_dashboard)
 
     def ir_a_registro():
@@ -280,9 +291,7 @@ async def main(page: ft.Page):
             log(f"refresh_sidebar ERROR: {e}")
             page.update()
 
-    # Primero mostrar la ventana (evita quedarse en "working"); el sidebar se rellena después
     log("Añadiendo contenido a la página...")
-    # Overlay de intro: bloques SGB que se ensamblan + subtítulo (encima de todo al inicio)
     intro_overlay = ft.Container(
         content=ft.Column(
             [
@@ -314,7 +323,6 @@ async def main(page: ft.Page):
         intro_overlay.visible = False
         page.update()
 
-    # Stack: contenedor principal, intro, cortina de transición (encima de todo al hacer login)
     stack_principal = ft.Stack(
         controls=[
             contenedor_principal,
@@ -327,7 +335,6 @@ async def main(page: ft.Page):
     dispersar_bloques()
     page.update()
     log("Ventana mostrada; cargando sidebar en segundo plano...")
-    # Sidebar se construye en segundo plano (shared_preferences puede bloquear si se hace antes de mostrar la ventana)
     page.run_task(refresh_sidebar)
     page.run_task(animacion_inicio_automatica)
 

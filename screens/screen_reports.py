@@ -37,18 +37,20 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         from forms import abrir_form_nuevo_reporte
         abrir_form_nuevo_reporte(page)
 
+    _tb = (page.data or {}).get("brigada_activa")
+
     def _refresh(_=None):
-        stats = crud_reporte.get_reporte_stats()
-        reportes = crud_reporte.listar_reportes()
+        stats = crud_reporte.get_reporte_stats(_tb)
+        reportes = crud_reporte.listar_reportes(_tb)
         kpis_row.controls = _build_kpi_cards(stats)
         reports_col.controls = _build_report_list(page, reportes)
         page.update()
 
     # Carga inicial de datos
-    stats = crud_reporte.get_reporte_stats()
+    stats = crud_reporte.get_reporte_stats(_tb)
     kpis_row = ft.Row(controls=_build_kpi_cards(stats), spacing=16)
 
-    reportes = crud_reporte.listar_reportes()
+    reportes = crud_reporte.listar_reportes(_tb)
     reports_col = ft.Column(controls=_build_report_list(page, reportes), spacing=14)
 
     contenido = ft.Column(

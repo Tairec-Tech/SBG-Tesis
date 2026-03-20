@@ -90,10 +90,11 @@ def _abrir_modal_crear_actividad(page: ft.Page, on_success=None, usuario_actual=
     brigada_info_text = None # Texto informativo cuando se auto-asigna
 
     try:
+        _tb = (page.data or {}).get("brigada_activa")
         if es_profesor(rol) and user_id:
             # Profesor: solo sus brigadas
             institucion_id = usuario_actual.get("institucion_id") or 1
-            todas = crud_brigada.listar_brigadas_para_profesor(user_id, institucion_id)
+            todas = crud_brigada.listar_brigadas_para_profesor(user_id, institucion_id, _tb)
             mis_brigadas = [b for b in todas if b.get("es_propia", False) or b.get("profesor_id") == user_id]
 
             if len(mis_brigadas) == 1:
@@ -134,7 +135,7 @@ def _abrir_modal_crear_actividad(page: ft.Page, on_success=None, usuario_actual=
                 brigada_info_text = ft.Text("No tienes brigadas asignadas.", size=13, color="#ef4444", italic=True)
         else:
             # Admin u otro rol → todas las brigadas
-            brigadas_disponibles = crud_brigada.listar_brigadas()
+            brigadas_disponibles = crud_brigada.listar_brigadas(_tb)
             opciones = [ft.dropdown.Option(str(b["idBrigada"]), b["nombre_brigada"]) for b in brigadas_disponibles]
             dd_brigada = ft.Dropdown(
                 label="Asignar a Brigada",
@@ -326,8 +327,9 @@ def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
             page.update()
 
     # 1. Obtener datos
+    _tb = (page.data or {}).get("brigada_activa")
     try:
-        actividades = crud_act.obtener_actividades_recientes(50)
+        actividades = crud_act.obtener_actividades_recientes(50, tipo_brigada=_tb)
     except Exception:
         actividades = []
 

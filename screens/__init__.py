@@ -16,6 +16,7 @@ from screens import (
     screen_legal,
     screen_backup,
     screen_utilidades,
+    screen_brigade_select,
 )
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "screen_legal",
     "screen_backup",
     "screen_utilidades",
+    "screen_brigade_select",
 ]

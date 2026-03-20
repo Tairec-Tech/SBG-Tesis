@@ -30,17 +30,18 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
             usuario_id = usu_dict.get("id", 0)
     except Exception:
         pass
+    _tb = (page.data or {}).get("brigada_activa")
 
     def cargar_datos():
         nonlocal reportes
-        reportes = crud_reporte.listar_reportes_impacto()
+        reportes = crud_reporte.listar_reportes_impacto(_tb)
         reports_col.controls = _build_report_list()
         page.update()
 
     # ---------------------------------------------
     # Cargar datos
     # ---------------------------------------------
-    reportes = crud_reporte.listar_reportes_impacto()
+    reportes = crud_reporte.listar_reportes_impacto(_tb)
     
     # ---------------------------------------------
     # Acciones de UX
@@ -72,7 +73,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
                         spacing=12,
                     ),
                     padding=40,
-                    alignment=ft.alignment.center,
+                    alignment=ft.Alignment(0, 0),
                 )
             ]
             

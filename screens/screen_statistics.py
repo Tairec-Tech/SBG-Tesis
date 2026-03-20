@@ -42,11 +42,12 @@ def _tarjeta_grafico(titulo: str, grafico: ft.Control, altura: float = 320) -> f
 
 def _build_con_graficos(page: ft.Page) -> ft.Control:
     """Construye la vista de estadísticas con BarChart, LineChart y PieChart con DATOS REALES."""
-    # Obtener datos matemáticos
-    kpis = crud_est.get_kpis_estadisticas()
-    act_por_mes = crud_est.get_actividades_por_mes()
-    reportes_tendencia = crud_est.get_tendencia_reportes_por_mes()
-    estados = crud_est.get_distribucion_estados_actividades()
+    # Obtener datos matemáticos (filtrados por tipo de brigada activa)
+    _tb = (page.data or {}).get("brigada_activa")
+    kpis = crud_est.get_kpis_estadisticas(_tb)
+    act_por_mes = crud_est.get_actividades_por_mes(_tb)
+    reportes_tendencia = crud_est.get_tendencia_reportes_por_mes(_tb)
+    estados = crud_est.get_distribucion_estados_actividades(_tb)
 
     # Colores base
     verde_1 = COLOR_PRIMARIO_OSCURO

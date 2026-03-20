@@ -22,17 +22,19 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         from forms import abrir_form_turno
         abrir_form_turno(page)
 
+    _tb = (page.data or {}).get("brigada_activa")
+
     def _refresh(_=None):
-        stats = crud_turno.get_turno_stats()
-        turnos = crud_turno.listar_turnos()
+        stats = crud_turno.get_turno_stats(_tb)
+        turnos = crud_turno.listar_turnos(tipo_brigada=_tb)
         kpis_row.controls = _build_kpi_cards(stats)
         schedule_col.controls = _build_turno_section(turnos)
         page.update()
 
-    stats = crud_turno.get_turno_stats()
+    stats = crud_turno.get_turno_stats(_tb)
     kpis_row = ft.Row(controls=_build_kpi_cards(stats), spacing=16)
 
-    turnos = crud_turno.listar_turnos()
+    turnos = crud_turno.listar_turnos(tipo_brigada=_tb)
     schedule_col = ft.Column(controls=_build_turno_section(turnos), spacing=0)
 
     contenido = ft.Column(

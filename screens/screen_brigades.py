@@ -182,13 +182,12 @@ def _build_brigade_cards(page, refresh_callback=None, usuario=None):
     user_id = usuario.get("id")
     
     try:
+        _tb = (page.data or {}).get("brigada_activa")
         if es_admin(rol):
-            # Admin ve todas las brigadas
-            brigadas = listar_brigadas()
+            brigadas = listar_brigadas(_tb)
         elif es_profesor(rol) and user_id:
-            # Profesor ve sus brigadas y las de otros profesores (institución desde login)
             institucion_id = usuario.get("institucion_id") or 1
-            brigadas = listar_brigadas_para_profesor(user_id, institucion_id)
+            brigadas = listar_brigadas_para_profesor(user_id, institucion_id, _tb)
         else:
             # Otros roles no ven brigadas en esta pantalla
             brigadas = []
