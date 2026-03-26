@@ -46,7 +46,7 @@ def _build_hero_card():
                 ft.Column(
                     [
                         ft.Text("Centro Educativo", size=18, weight="bold", color=COLOR_TEXTO),
-                        ft.Text("Recursos, guías y contenido educativo para brigadas ambientales.", size=14, color=COLOR_TEXTO_SEC),
+                        ft.Text("Recursos, guías y contenido educativo para las brigadas escolares.", size=14, color=COLOR_TEXTO_SEC),
                     ],
                     spacing=4,
                     horizontal_alignment=ft.CrossAxisAlignment.START,
@@ -76,7 +76,7 @@ def _build_brigade_guide_card(page):
                             ft.Column(
                                 [
                                     ft.Text("Guías y recursos", size=18, weight="bold", color="white"),
-                                    ft.Text("Recursos y contenido educativo para las brigadas ambientales.", size=13, color=ft.Colors.with_opacity(0.9, "white")),
+                                    ft.Text("Recursos y contenido educativo para las brigadas escolares.", size=13, color=ft.Colors.with_opacity(0.9, "white")),
                                 ],
                                 spacing=4,
                                 horizontal_alignment=ft.CrossAxisAlignment.START,
@@ -100,9 +100,9 @@ def _build_brigade_guide_card(page):
                                 spacing=8,
                             ),
                             ft.Container(height=12),
-                            ft.Text("• Conocer prácticas de reciclaje y reducción de residuos.", size=13, color=COLOR_TEXTO_SEC),
-                            ft.Text("• Mantener áreas verdes y huertos escolares.", size=13, color=COLOR_TEXTO_SEC),
-                            ft.Text("• Promover campañas de conciencia ambiental.", size=13, color=COLOR_TEXTO_SEC),
+                            ft.Text("• Conocer las normativas y procedimientos de su brigada.", size=13, color=COLOR_TEXTO_SEC),
+                            ft.Text("• Participar activamente en simulacros y jornadas.", size=13, color=COLOR_TEXTO_SEC),
+                            ft.Text("• Promover campañas de concientización en la comunidad.", size=13, color=COLOR_TEXTO_SEC),
                             ft.Container(height=16),
                             ft.Row(
                                 [ft.Text("Habilidades:", size=14, weight="w600", color=COLOR_TEXTO)],
@@ -111,9 +111,10 @@ def _build_brigade_guide_card(page):
                             ft.Container(height=8),
                             ft.Row(
                                 [
-                                    ft.Container(content=ft.Text("Reciclaje", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
-                                    ft.Container(content=ft.Text("Compostaje", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
-                                    ft.Container(content=ft.Text("Educación ambiental", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
+                                    ft.Container(content=ft.Text("Primeros Auxilios", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
+                                    ft.Container(content=ft.Text("Seguridad Vial", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
+                                    ft.Container(content=ft.Text("Medio Ambiente", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
+                                    ft.Container(content=ft.Text("Convivencia", size=12), bgcolor=COLOR_BORDE, padding=ft.Padding(10, 6), border_radius=8),
                                 ],
                                 spacing=8,
                                 wrap=True,

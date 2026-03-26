@@ -29,12 +29,12 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
 
     secciones = [
         ("🏠 Panel Principal", "Visualiza los KPIs principales del sistema: total de brigadas, usuarios activos, actividades completadas y pendientes. También muestra las actividades más recientes y el mensaje del día."),
-        ("🛡️ Gestión de Brigadas", "Crea, edita y administra las brigadas ambientales. Asigna coordinadores y establece las áreas de operación de cada brigada."),
+        ("🛡️ Gestión de Brigadas", "Crea, edita y administra las brigadas. Asigna coordinadores y establece las áreas de operación de cada brigada."),
         ("📋 Actividades", "Planifica y registra las actividades ecológicas. Establece fechas de inicio y fin, asigna brigadas responsables y haz seguimiento del estado de cada actividad."),
         ("👥 Brigadistas", "Gestiona la lista de estudiantes brigadistas. Inscribe nuevos miembros, asígnalos a brigadas y consulta su información de contacto."),
         ("📊 Estadísticas", "Centro de mando analítico con gráficos interactivos: actividades por mes (barras), tendencia de reportes (líneas) y distribución de estados (dona). Incluye 5 indicadores clave de rendimiento."),
         ("📝 Reportes", "Genera y consulta tres tipos de reportes: Reportes de Incidentes, Reportes de Actividades y Reportes de Impacto. Cada uno puede descargarse en formato Word (.docx)."),
-        ("⏰ Turnos y Horarios", "Organiza los turnos de las brigadas y establece los horarios de actividades y vigilancia ambiental."),
+        ("⏰ Turnos y Horarios", "Organiza los turnos de las brigadas y establece los horarios de actividades y vigilancia."),
         ("📚 Contenido Educativo", "Accede a materiales educativos sobre medio ambiente, reciclaje y conservación para compartir con los brigadistas."),
     ]
 

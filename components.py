@@ -189,7 +189,7 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
                     ft.Column(
                         [
                             ft.Text("Brigadas Escolares", size=16, weight="bold", color=COLOR_SIDEBAR_TEXTO),
-                            ft.Text("Brigadas Ambientales", size=11, color=COLOR_SIDEBAR_TEXTO_SEC),
+                            ft.Text("Municipio Maracaibo", size=11, color=COLOR_SIDEBAR_TEXTO_SEC),
                         ],
                         spacing=0,
                         horizontal_alignment=ft.CrossAxisAlignment.START,

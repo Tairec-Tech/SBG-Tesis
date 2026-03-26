@@ -127,7 +127,6 @@ def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is
         # Asegurar icono de dropdown visible
         campo.icon_content = ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=COLOR_TEXTO_SEC)
 
-    if is_dropdown:
         # Mismo tamaño que los TextField: contenedor 56px con el dropdown centrado
         contenido_interno = ft.Container(content=campo, height=56, alignment=ft.Alignment(-1, 0), expand=True)
     else:
@@ -158,7 +157,7 @@ def _input_con_titulo_y_glow(titulo: str, campo: ft.Control, color_glow: str, is
         bgcolor=COLOR_CARD,
         border_radius=16,
         border=ft.Border.all(1, COLOR_BORDE),
-        padding=ft.Padding.only(left=0 if not is_dropdown else 15, right=15),
+        padding=ft.Padding(15 if is_dropdown else 0, 0, 0 if is_dropdown else 15, 0),
         height=56,
         clip_behavior=ft.ClipBehavior.HARD_EDGE,
         shadow=ft.BoxShadow(
@@ -190,8 +189,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
-        content_padding=ft.Padding(0, 16),
-        dense=True,
+        expand=True,
     )
     campo_usuario = ft.TextField(
         hint_text="Usuario",
@@ -208,6 +206,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
+        content_padding=ft.Padding(0, 18, 0, 18),
     )
     checkbox_profesor = ft.Checkbox(
         label="Soy profesor",
@@ -425,7 +424,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
                 offset=ft.Offset(0, 12),
             ),
         ],
-        width=420,
+        width=460,
     )
 
     # Blobs de fondo (misma difuminación que los glows: radial centro → transparente)

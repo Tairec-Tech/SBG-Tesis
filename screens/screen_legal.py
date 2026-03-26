@@ -38,7 +38,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
                         ft.Container(height=12),
                         ft.Text(
                             "Este software ha sido desarrollado exclusivamente con fines educativos y de gestión interna "
-                            "para las brigadas ambientales de instituciones educativas del municipio Maracaibo. "
+                            "para las brigadas escolares de instituciones educativas del municipio Maracaibo. "
                             "Queda prohibida su reproducción total o parcial sin autorización expresa de los desarrolladores.",
                             size=13, color=COLOR_TEXTO_SEC,
                         ),

@@ -165,7 +165,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         [
             titulo_pagina(
                 "Reportes de Actividades",
-                "Consulta los resúmenes y resultados de las jornadas ambientales",
+                "Consulta los resúmenes y resultados de las jornadas de las brigadas",
                 icono="event_note",
             ),
             ft.Container(expand=True),

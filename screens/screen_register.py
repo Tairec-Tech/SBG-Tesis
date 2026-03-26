@@ -256,6 +256,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     ]
     cdce_dropdown = ft.Dropdown(
         hint_text="Seleccione el CDCE / Parroquia",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=opciones_cdce
@@ -345,6 +346,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
+        content_padding=ft.Padding(0, 18, 0, 18),
     )
     confirmar = ft.TextField(
         hint_text="Confirmar contraseña",
@@ -354,6 +356,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
+        content_padding=ft.Padding(0, 18, 0, 18),
     )
 
     # --- Campos (profesor) ---
@@ -362,10 +365,12 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     except Exception:
         inst_opciones = []
     dropdown_inst = ft.Dropdown(
-        hint_text="Seleccione la institución donde trabaja",
+        hint_text="Seleccione su institución",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         options=inst_opciones,
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        expand=True,
     )
     nombre_prof = ft.TextField(
         hint_text="Nombre completo",
@@ -390,6 +395,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     )
     correo_prof = ft.TextField(
         hint_text="Correo electrónico",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
@@ -402,14 +408,17 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         border=ft.InputBorder.NONE,
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
+        content_padding=ft.Padding(0, 18, 0, 18),
     )
     confirmar_prof = ft.TextField(
         hint_text="Confirmar contraseña",
+        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         password=True,
         can_reveal_password=True,
         border=ft.InputBorder.NONE,
-        text_style=ft.TextStyle(size=14, color="#334155"),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         cursor_color=COLOR_PRIMARIO,
+        content_padding=ft.Padding(0, 18, 0, 18),
     )
 
     # --- Botón Registrar (referencia para on_registrar) ---
@@ -781,7 +790,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
             ft.BoxShadow(blur_radius=60, spread_radius=-8, color=ft.Colors.with_opacity(0.2, COLOR_TEXTO), offset=ft.Offset(0, 28)),
             ft.BoxShadow(blur_radius=16, spread_radius=0, color=ft.Colors.with_opacity(0.08, COLOR_TEXTO), offset=ft.Offset(0, 12)),
         ],
-        width=560,
+        width=680,
     )
 
     # --- Fondo igual que login: blobs + partículas verdes, SIN casa ni icono gente ---

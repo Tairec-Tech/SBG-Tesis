@@ -42,7 +42,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
                                 ft.Column(
                                     [
                                         ft.Text("Sistema de Gestión de Brigadas", size=22, weight="bold", color=COLOR_TEXTO),
-                                        ft.Text("Brigadas Ambientales Escolares", size=14, color=COLOR_TEXTO_SEC),
+                                        ft.Text("Brigadas Escolares — Municipio Maracaibo", size=14, color=COLOR_TEXTO_SEC),
                                     ],
                                     spacing=4,
                                 ),
@@ -59,10 +59,10 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
                         ft.Container(height=20),
                         ft.Divider(height=1),
                         ft.Container(height=20),
-                        ft.Text("Desarrollado para la coordinación y gestión de brigadas ambientales en instituciones educativas del municipio Maracaibo.", 
+                        ft.Text("Desarrollado para la coordinación y gestión de brigadas escolares en instituciones educativas del municipio Maracaibo.", 
                                 size=14, color=COLOR_TEXTO_SEC),
                         ft.Container(height=12),
-                        ft.Text("© 2025-2026 — Brigadas Ambientales Escolares. Todos los derechos reservados.", 
+                        ft.Text("© 2025-2026 — Brigadas Escolares. Todos los derechos reservados.", 
                                 size=12, color=COLOR_TEXTO_SEC, italic=True),
                     ],
                     spacing=0,

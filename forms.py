@@ -1600,7 +1600,7 @@ def abrir_dialogo_acerca_de(page: ft.Page):
         [
             ft.Text("Sistema de Brigadas Escolares (SGB)", size=16, weight="w600", color=COLOR_TEXTO),
             ft.Container(height=8),
-            ft.Text("Municipio Maracaibo — Gestión de brigadas ambientales.", size=13, color=COLOR_TEXTO_SEC),
+            ft.Text("Municipio Maracaibo — Gestión de brigadas escolares.", size=13, color=COLOR_TEXTO_SEC),
             ft.Container(height=12),
             ft.Text("Versión 1.0", size=12, color=COLOR_TEXTO_SEC),
         ],

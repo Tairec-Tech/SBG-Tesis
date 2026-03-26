@@ -149,7 +149,7 @@ def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
     if es_profesor(rol):
         subtitulo = "Gestiona tus brigadas y visualiza las de otros profesores"
     else:
-        subtitulo = "Administra y organiza todas las brigadas ambientales de tu institución"
+        subtitulo = "Administra y organiza todas las brigadas de tu institución"
     
     header = titulo_pagina(
         "Gestión de Brigadas",

@@ -264,7 +264,7 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
         [
             titulo_pagina(
                 "Centro de Mando Estadístico",
-                "Monitoreo global del avance e impacto medioambiental",
+                "Monitoreo global del avance e impacto de las brigadas",
             ),
             ft.Container(height=16),
             fila_kpis,

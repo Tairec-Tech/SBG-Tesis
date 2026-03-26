@@ -1,0 +1,504 @@
+================================================================================
+  INFORME COMPLETO DEL PROYECTO SBG
+  Sistema de Gestión de Brigadas Escolares — Municipio Maracaibo
+  Fecha: 2026-03-26
+  Preparado para: continuidad por otra IA
+================================================================================
+
+1. RESUMEN DEL PROYECTO
+================================================================================
+
+SBG es una aplicación de escritorio construida con Python + Flet (framework UI).
+Gestiona brigadas escolares de Venezuela según el Ministerio de Educación:
+  - Brigada Ecológica (verde)
+  - Brigada de Gestión de Riesgo y Primeros Auxilios (rojo)
+  - Brigada de Patrulla Escolar (naranja)
+  - Brigada de Convivencia y Paz (gris/plata)
+
+Base de datos: MySQL (XAMPP local).
+Entorno: Windows, Python 3.x, virtualenv en ./venv
+
+Se ejecuta con: py main.py (desde la raíz del proyecto con venv activado)
+
+
+2. DEPENDENCIAS EXACTAS (requirements.txt)
+================================================================================
+
+flet==0.80.5
+flet-charts==0.80.5
+mysql-connector-python    (sin versión fija, la última compatible)
+Pillow                    (sin versión fija)
+python-dotenv             (sin versión fija)
+python-docx               (sin versión fija)
+
+IMPORTANTE sobre Flet 0.80.5:
+  - ft.alignment.center NO EXISTE. Usar ft.Alignment(0, 0)
+  - ft.Text() NO acepta parámetro "shadow". Genera error si se usa.
+  - ft.Padding.symmetric() podría no funcionar, usar ft.Padding(l, t, r, b)
+  - page.show_dialog() y page.pop_dialog() son los métodos correctos.
+  - No usar ft.Colors.GREEN directamente en algunos contextos, 
+    usar ft.Colors.GREEN_500 o string hex.
+
+
+3. ESTRUCTURA DE ARCHIVOS
+================================================================================
+
+SBG/
+├── main.py                    # Punto de entrada. Flujo completo de la app.
+├── theme.py                   # Sistema de temas multi-brigada (639 líneas)
+├── components.py              # Sidebar, cards, KPIs, botones reutilizables
+├── forms.py                   # TODOS los formularios/modales (2194 líneas, ENORME)
+├── util_docx.py               # Generación de documentos DOCX
+├── util_log.py                # Logging básico
+├── auth_theme_toggle.py       # Toggle modo claro/oscuro para pantallas auth
+├── requirements.txt
+├── .env                       # Credenciales BD (NO en git)
+├── .env.example               # Plantilla de credenciales
+│
+├── database/
+│   ├── config.py              # Lee .env → DB_HOST, DB_PORT, DB_USER, etc.
+│   ├── connection.py          # Pool de conexiones MySQL (5 conexiones)
+│   ├── auth.py                # Hashing de contraseñas (PBKDF2)
+│   ├── __init__.py
+│   ├── crud_actividad.py      # CRUD actividades (filtro tipo_brigada)
+│   ├── crud_brigada.py        # CRUD brigadas (filtro tipo_brigada)
+│   ├── crud_config.py         # CRUD tabla configuracion (mensaje_dia)
+│   ├── crud_dashboard.py      # KPIs del dashboard (filtro tipo_brigada)
+│   ├── crud_estadisticas.py   # Stats para gráficos (filtro tipo_brigada)
+│   ├── crud_reporte.py        # CRUD reportes incid/activ/impacto (filtro)
+│   ├── crud_turno.py          # CRUD turnos (filtro tipo_brigada)
+│   ├── crud_usuario.py        # CRUD usuarios (26K, el más grande)
+│   ├── db_brigadas_maracaibo.sql  # Script principal de BD
+│   ├── migrate_mensaje_dia.sql    # Migración para tabla configuracion
+│   ├── seed_activities.sql        # Datos de prueba
+│   ├── seed_director_profesores_alumnos.sql
+│   ├── seed_reportes.sql
+│   ├── seed_reportes_impacto_actividad.sql
+│   ├── seed_turnos.sql
+│   └── CREDENCIALES_SEED.txt  # Credenciales de usuarios seed
+│
+├── screens/
+│   ├── __init__.py                # Registra todas las pantallas
+│   ├── screen_login.py            # Login con animación
+│   ├── screen_register.py         # Registro de usuarios (35K, grande)
+│   ├── screen_recovery.py         # Recuperación de contraseña
+│   ├── screen_brigade_select.py   # Selección de brigada (2x2 grid)
+│   ├── screen_dashboard.py        # Panel principal con KPIs
+│   ├── screen_brigades.py         # Gestión de brigadas (cards)
+│   ├── screen_brigadistas.py      # Gestión de miembros/usuarios
+│   ├── screen_activities.py       # Actividades
+│   ├── screen_reports.py          # Reportes de incidentes
+│   ├── screen_reports_activities.py  # Reportes de actividades
+│   ├── screen_reports_impact.py      # Reportes de impacto
+│   ├── screen_shifts.py           # Turnos y horarios
+│   ├── screen_statistics.py       # Gráficos (BarChart, LineChart, PieChart)
+│   ├── screen_content.py          # Contenido educativo
+│   ├── screen_utilidades.py       # Menú de utilidades (4 botones)
+│   ├── screen_backup.py           # Respaldo de BD
+│   ├── screen_manual.py           # Manual de usuario
+│   ├── screen_about.py            # Acerca de
+│   ├── screen_legal.py            # Info legal
+│   └── screen_settings.py         # Configuración
+│
+├── assets/                    # Imágenes, logos
+├── uploads/                   # Logos de instituciones
+└── venv/                      # Entorno virtual Python
+
+
+4. FLUJO DE LA APLICACIÓN
+================================================================================
+
+4.1 Inicio y Autenticación (colores neutros — gris/azul):
+
+  main.py → ft.run(main)
+    ↓
+  Animación de intro (bloques "S", "B", "G" que se ensamblan)
+    ↓
+  Pantalla de Login (screen_login.py)
+    ├── Botón "Registrarse" → screen_register.py
+    └── Botón "¿Olvidaste tu contraseña?" → screen_recovery.py
+    ↓ (login exitoso)
+
+4.2 Selección de Brigada:
+
+  screen_brigade_select.py (grid 2x2 a pantalla completa)
+    ├── Gestión de Riesgo (rojo, esquina superior-izquierda)
+    ├── Patrulla Escolar (naranja, esquina superior-derecha)
+    ├── Convivencia y Paz (gris/plata, esquina inferior-izquierda)
+    └── Ecológica (verde, esquina inferior-derecha)
+    ↓ (clic en una brigada)
+
+4.3 Transición Animada:
+
+  on_brigada_seleccionada(brigada_key)
+    → page.data["brigada_activa"] = brigada_key  (ej: "ecologica")
+    → aplicar_paleta(page, brigada_key)           (cambia tema global)
+    → Animación de cortina con color de la brigada
+    → Texto "Bienvenido Prof. X — Brigada Ecológica — Institución Y"
+    ↓
+
+4.4 Dashboard + Sidebar:
+
+  Sidebar izquierdo (components.py → build_sidebar):
+    - Dashboard
+    - Brigadas
+    - Brigadistas
+    - Actividades
+    - Reportes (Incidentes / Actividades / Impacto)
+    - Turnos
+    - Estadísticas
+    - Contenido
+    - Utilidades → Menú de 4 botones → Respaldo / Manual / Acerca De / Legal
+    - Modo día/noche
+    - Cerrar sesión → vuelve a login
+
+  Contenido principal (contenido_area):
+    Cada botón del sidebar llama a: builder(page, content_area=contenido_area)
+    El builder es el .build() de cada screen_*.py
+
+
+5. SISTEMA DE TEMAS (theme.py)
+================================================================================
+
+Archivo de 639 líneas. Define:
+
+5.1 Constantes de color por brigada:
+  HEX_ECO_*       → verde (#059669, etc.)
+  HEX_RIESGO_*    → rojo (#dc2626, etc.)
+  HEX_PATRULLA_*  → naranja (#ea580c, etc.)
+  HEX_CONVIVENCIA_* → gris/plata (#64748b, etc.)
+  HEX_NEUTRA_*    → neutro (#475569, etc.) para Login/Registro
+
+5.2 Temas ft.Theme:
+  TEMA_ECO_CLARO / TEMA_ECO_OSCURO
+  TEMA_RIESGO_CLARO / TEMA_RIESGO_OSCURO
+  TEMA_PATRULLA_CLARO / TEMA_PATRULLA_OSCURO
+  TEMA_CONVIVENCIA_CLARO / TEMA_CONVIVENCIA_OSCURO
+  TEMA_NEUTRA_CLARO / TEMA_NEUTRA_OSCURO
+
+5.3 Variables dinámicas "activas" (se cambian en runtime):
+  COLOR_PRIMARIO, COLOR_PRIMARIO_CLARO, COLOR_PRIMARIO_OSCURO
+  COLOR_VERDE_SUAVE, COLOR_FONDO_VERDE, COLOR_SIDEBAR
+  COLOR_TEXTO, COLOR_TEXTO_SEC, COLOR_CARD, COLOR_BORDE
+  (y más)
+
+5.4 Diccionario BRIGADAS:
+  BRIGADAS = {
+    "ecologica":   { "nombre": ..., "tema_claro": ..., "tema_oscuro": ..., "hex_primario": ..., "icono": ... },
+    "riesgo":      { ... },
+    "patrulla":    { ... },
+    "convivencia": { ... },
+  }
+
+5.5 Funciones clave:
+  aplicar_paleta(page, nombre_brigada)  → Cambia tema global + variables COLOR_*
+  aplicar_paleta_neutra(page)            → Tema neutro para auth
+
+
+6. BASE DE DATOS (MySQL)
+================================================================================
+
+6.1 Nombre: db_brigadas_maracaibo
+6.2 Script principal: database/db_brigadas_maracaibo.sql
+
+6.3 Tablas principales:
+
+  brigada
+    idBrigada (PK, AUTO_INCREMENT)
+    nombre_brigada VARCHAR(45)
+    area_accion VARCHAR(45)
+    descripcion TEXT
+    coordinador VARCHAR(100)
+    color_identificador VARCHAR(20) DEFAULT '#2563eb'
+    tipo_brigada ENUM('ecologica','riesgo','patrulla','convivencia') DEFAULT 'ecologica'
+    fecha_creacion TIMESTAMP
+    Institucion_Educativa_idInstitucion FK
+    profesor_id FK → usuario
+    subjefe_id FK → usuario
+
+  usuario
+    idUsuario (PK)
+    cedula, nombre, apellido, email, contrasena_hash
+    rol ENUM('Directivo','Coordinador','Profesor','Brigadista')
+    Brigada_idBrigada FK (puede ser NULL)
+    Institucion_Educativa_idInstitucion FK
+
+  actividad
+    idActividad (PK)
+    titulo, descripcion, fecha_inicio, fecha_fin, estado
+    Brigada_idBrigada FK
+
+  reporte_incidente
+    idReporte (PK)
+    titulo, descripcion, ubicacion, prioridad, estado
+    Brigada_idBrigada FK
+
+  reporte_actividad
+    idReporte_actividad (PK)
+    resumen, resultado, fecha_reporte
+    Actividad_idActividad FK
+    Usuario_idUsuario FK
+
+  reporte_de_impacto
+    idReporte_impacto (PK)
+    contenido, fecha_generacion
+    Actividad_idActividad FK
+    Usuario_idUsuario FK
+
+  indicador_ambiental
+    idIndicador (PK)
+    tipo_indicador, valor, unidad_medida, fecha_registro
+    Actividad_idActividad FK
+
+  institucion_educativa
+    idInstitucion (PK)
+    nombre_institucion, direccion, telefono
+    municipio, parroquia, estado_ven, codigo_plantel
+
+  turno (creada por código si no existe)
+    idTurno (PK)
+    Brigada_idBrigada FK, fecha, hora_inicio, hora_fin,
+    ubicacion, notas, estado
+
+  configuracion (creada por migración)
+    clave (PK), valor
+
+6.4 Conexión:
+  .env → config.py → connection.py (pool de 5 conexiones)
+  Función ejecutar(sql, params, commit) para queries simples
+  Función get_connection() para queries con dictionary=True
+
+6.5 IMPORTANTE — Aislamiento de datos por tipo de brigada:
+  La columna "tipo_brigada" en tabla "brigada" es la CLAVE.
+  Cuando el usuario selecciona una brigada (ej: "ecologica"):
+    → page.data["brigada_activa"] = "ecologica"
+    → TODOS los CRUDs reciben tipo_brigada como parámetro opcional
+    → Los queries hacen JOIN brigada WHERE tipo_brigada = %s
+    → Así, al estar en "Ecológica", solo ves datos de brigadas ecológicas
+
+  Si la BD existente no tiene la columna, ejecutar:
+    ALTER TABLE brigada ADD COLUMN tipo_brigada 
+      ENUM('ecologica','riesgo','patrulla','convivencia') 
+      NOT NULL DEFAULT 'ecologica' AFTER color_identificador;
+    ALTER TABLE brigada ADD KEY idx_brigada_tipo (tipo_brigada);
+
+
+7. SISTEMA DE ROLES Y PERMISOS
+================================================================================
+
+Roles (tabla usuario, campo rol):
+  - Directivo:   Ve todo, supervisa. No crea brigadas.
+  - Coordinador: Similar a directivo.
+  - Profesor:    Crea y gestiona SUS brigadas. Ve las de otros profesores (solo lectura).
+  - Brigadista:  Alumno miembro de una brigada.
+
+Funciones de verificación (crud_usuario.py):
+  es_admin(rol)     → True si Directivo o Coordinador
+  es_profesor(rol)  → True si Profesor
+
+Contraseñas: hash PBKDF2 (database/auth.py)
+Credenciales seed: database/CREDENCIALES_SEED.txt
+
+
+8. ARCHIVOS GRANDES Y COMPLEJOS
+================================================================================
+
+forms.py (2194 líneas, 85KB):
+  Contiene TODOS los formularios modales del sistema:
+  - abrir_form_brigada_registrar/modificar/eliminar/agregar_miembros
+  - abrir_form_usuario_registrar/modificar
+  - abrir_form_turno
+  - abrir_form_nuevo_reporte
+  - modal_nuevo_reporte_actividad
+  - modal_nuevo_reporte_impacto
+  - Helpers: _campo_texto, _campo_con_titulo, _cerrar_dialogo, _abrir_dialogo
+  
+  CUIDADO: Este archivo es muy grande. Si necesitas editarlo, hazlo con
+  precisión quirúrgica (editar solo las líneas necesarias).
+
+screen_register.py (35K):
+  Registro multi-paso con muchos campos y validaciones.
+
+crud_usuario.py (26K):
+  El CRUD más grande. Incluye login, registro, listados por rol, etc.
+
+
+9. BUGS CONOCIDOS Y FRECUENTES
+================================================================================
+
+9.1 ERRORES DE COMPATIBILIDAD CON FLET 0.80.5:
+
+  BUG: ft.alignment.center → AttributeError
+  FIX: Usar ft.Alignment(0, 0) en su lugar.
+  ARCHIVOS AFECTADOS: screen_reports_impact.py, screen_reports_activities.py
+  ESTADO: Ya corregido.
+
+  BUG: ft.Text(shadow=...) → __init__() got unexpected keyword argument 'shadow'
+  FIX: No usar parámetro "shadow" en ft.Text.
+  ARCHIVOS AFECTADOS: screen_brigade_select.py (ya corregido).
+
+  BUG: ft.Padding.symmetric() puede no existir.
+  FIX: Usar ft.Padding(left, top, right, bottom) directamente.
+
+9.2 ERRORES DE CONEXIÓN A BD:
+
+  BUG: "Can't connect to MySQL server"
+  CAUSA: XAMPP/MySQL no está iniciado.
+  FIX: Iniciar MySQL desde XAMPP antes de ejecutar la app.
+
+  BUG: "Unknown database 'db_brigadas_maracaibo'"
+  CAUSA: No se ha creado la BD.
+  FIX: Ejecutar db_brigadas_maracaibo.sql en phpMyAdmin o mysql CLI.
+
+  BUG: "Access denied for user 'root'"
+  CAUSA: Contraseña en .env no coincide con MySQL.
+  FIX: Verificar SBG_DB_PASSWORD en .env.
+
+9.3 PROBLEMAS DE UI:
+
+  BUG: Sidebar desaparece después de algunas acciones.
+  NOTA: Ocurre cuando se reconstruye la vista principal incorrectamente.
+  El sidebar se construye en components.py → build_sidebar().
+
+  BUG: screen_brigade_select.py — clics no funcionan en brigadas.
+  CAUSA ORIGINAL: Había overlays (separadores) que interceptaban los clics.
+  ESTADO: Corregido (se usó spacing=2 con fondo oscuro en vez de overlays).
+
+
+10. PATRÓN DE SCREEN (CÓMO CREAR UNA NUEVA PANTALLA)
+================================================================================
+
+Cada pantalla sigue este patrón:
+
+  # screens/screen_ejemplo.py
+  import flet as ft
+  from theme import COLOR_FONDO_VERDE, COLOR_TEXTO, ...
+  from components import titulo_pagina, card_principal, ...
+
+  def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
+      # 1. Obtener tipo de brigada activa
+      _tb = (page.data or {}).get("brigada_activa")
+      
+      # 2. Obtener datos filtrados
+      datos = mi_crud.listar_datos(tipo_brigada=_tb)
+      
+      # 3. Construir UI
+      contenido = ft.Column([...], scroll=ft.ScrollMode.AUTO, expand=True)
+      
+      # 4. Retornar contenedor
+      return ft.Container(
+          content=contenido,
+          padding=24,
+          bgcolor=COLOR_FONDO_VERDE,
+          expand=True,
+      )
+
+Para registrar la pantalla:
+  1. Crear el archivo en screens/
+  2. Importarlo en screens/__init__.py
+  3. Agregarlo al sidebar en components.py → build_sidebar()
+
+
+11. PATRÓN DE CRUD (CÓMO CREAR UN NUEVO CRUD)
+================================================================================
+
+  # database/crud_ejemplo.py
+  from database.connection import ejecutar
+
+  def listar_cosas(tipo_brigada=None):
+      if tipo_brigada:
+          sql = """
+              SELECT ... FROM mi_tabla m
+              JOIN brigada b ON m.Brigada_idBrigada = b.idBrigada
+              WHERE b.tipo_brigada = %s
+              ORDER BY ...
+          """
+          params = (tipo_brigada,)
+      else:
+          sql = "SELECT ... FROM mi_tabla ORDER BY ..."
+          params = None
+      
+      try:
+          rows, description = ejecutar(sql, params)
+          return rows or []
+      except Exception as e:
+          print(f"Error: {e}")
+          return []
+
+  def crear_cosa(campo1, campo2, brigada_id):
+      sql = "INSERT INTO mi_tabla (...) VALUES (%s, %s, %s)"
+      try:
+          return ejecutar(sql, (campo1, campo2, brigada_id), commit=True)
+      except Exception as e:
+          print(f"Error: {e}")
+          return None
+
+REGLA CLAVE: Siempre aceptar tipo_brigada=None como parámetro opcional.
+Si tiene valor, filtrar con JOIN brigada WHERE tipo_brigada = %s.
+
+
+12. CONFIGURACIÓN DE ENTORNO
+================================================================================
+
+12.1 Instalar dependencias:
+  python -m venv venv
+  venv\Scripts\activate
+  pip install -r requirements.txt
+
+12.2 Configurar BD:
+  - Iniciar XAMPP → MySQL
+  - Crear BD: CREATE DATABASE db_brigadas_maracaibo;
+  - Ejecutar: database/db_brigadas_maracaibo.sql
+  - Ejecutar seeds opcionales: seed_*.sql
+  - Copiar .env.example a .env y configurar contraseña
+
+12.3 Ejecutar:
+  py main.py
+
+12.4 Variables de entorno (.env):
+  SBG_DB_HOST=localhost
+  SBG_DB_PORT=3306
+  SBG_DB_USER=root
+  SBG_DB_PASSWORD=         (vacío para XAMPP por defecto)
+  SBG_DB_NAME=db_brigadas_maracaibo
+
+
+13. DATOS DE SESIÓN EN RUNTIME
+================================================================================
+
+page.data (dict) almacena datos globales de sesión:
+  page.data["usuario_actual"] → dict con id, nombre, apellido, email, rol, etc.
+  page.data["brigada_activa"] → str: "ecologica" | "riesgo" | "patrulla" | "convivencia"
+
+page.client_storage → Almacenamiento persistente del cliente Flet:
+  "usuario_actual" → JSON string del usuario logueado
+
+page.theme → ft.Theme actual (cambia según brigada seleccionada)
+page.theme_mode → ft.ThemeMode.LIGHT o ft.ThemeMode.DARK
+
+
+14. PRÓXIMOS PASOS / TRABAJO PENDIENTE
+================================================================================
+
+- Verificar que al cambiar de brigada (cerrar sesión → re-login → otra brigada)
+  los datos se filtran correctamente.
+- Los seeds existentes NO tienen "tipo_brigada" asignado (todo es 'ecologica' 
+  por default). Para probar otras brigadas, insertar datos con:
+  INSERT INTO brigada (nombre_brigada, area_accion, tipo_brigada, ...) 
+  VALUES ('Mi Brigada', 'Riesgo', 'riesgo', ...);
+- screen_statistics.py requiere flet-charts instalado. Sin él muestra "En construcción".
+- forms.py es enorme (2194 líneas). Considerar refactorizarlo en módulos separados.
+- La Brigada de Convivencia usa un gradiente gris/plata (#94a3b8 → #cbd5e1 → #e2e8f0)
+  con texto oscuro (#1e293b) para contraste. Si se cambia, actualizar también theme.py.
+
+
+15. RESUMEN TÉCNICO EN UNA LÍNEA
+================================================================================
+
+App Flet 0.80.5 + MySQL con pool, multi-brigada con temas dinámicos, 
+aislamiento de datos por tipo_brigada, roles RBAC, hashing PBKDF2, 
+exportación DOCX, gráficos con flet-charts.
+
+================================================================================
+  FIN DEL INFORME
+================================================================================

@@ -150,7 +150,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         [
             titulo_pagina(
                 "Reportes de Impacto",
-                "Evaluación y seguimiento del impacto ambiental estructurado",
+                "Evaluación y seguimiento del impacto de las brigadas",
                 icono="public",
             ),
             ft.Container(expand=True),

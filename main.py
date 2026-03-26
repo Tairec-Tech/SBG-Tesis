@@ -53,6 +53,8 @@ async def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 0
     page.window.maximized = True
+    # Registrar fuente elegante para la selección de brigadas
+    page.fonts = {"Outfit": "https://raw.githubusercontent.com/nicholasmireles/fonts/main/ofl/outfit/Outfit%5Bwght%5D.ttf"}
     page.update()
 
     # ----- Animación de entrada: bloques SGB (tonos neutros) -----

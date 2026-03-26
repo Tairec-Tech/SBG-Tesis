@@ -37,7 +37,7 @@ def generar_reporte_docx(reporte: dict, save_path: str = None) -> str | None:
         # -- Encabezado Principal --
         header = doc.add_paragraph()
         header.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        runner = header.add_run("SISTEMA DE BRIGADAS AMBIENTALES\n")
+        runner = header.add_run("SISTEMA DE BRIGADAS ESCOLARES\n")
         runner.bold = True
         runner.font.size = Pt(16)
         runner.font.color.rgb = RGBColor(0x05, 0x96, 0x69) # Verde primario
