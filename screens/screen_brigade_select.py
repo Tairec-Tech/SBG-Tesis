@@ -15,7 +15,6 @@ from theme import (
     COLOR_PRIMARIO_CLARO,
     COLOR_VERDE_SUAVE,
     COLOR_CARD,
-    COLOR_BORDE,
 )
 
 # ─── Colores de blobs decorativos ───
@@ -85,48 +84,240 @@ def _crear_particula(color: str, size: float) -> ft.Container:
 
 
 # ─── Config de las 4 brigadas (fijas) ───
+_CARD_W = 340
+_CARD_H = 360
+
+_SHADOW_NORMAL = [ft.BoxShadow(blur_radius=30, spread_radius=-4,
+    color=ft.Colors.with_opacity(0.12, "#1e293b"), offset=ft.Offset(0, 12))]
+_SHADOW_HOVER = [ft.BoxShadow(blur_radius=40, spread_radius=-6,
+    color=ft.Colors.with_opacity(0.2, "#1e293b"), offset=ft.Offset(0, 18))]
+
 _BRIGADAS_CONFIG = [
     {
         "key": "riesgo",
         "icono": ft.Icons.HEALTH_AND_SAFETY,
-        "color_primario": "#dc2626",
-        "color_oscuro": "#991b1b",
-        "gradient": ["#b91c1c", "#dc2626"],
+        "color": "#dc2626",
+        "grad": ["#b91c1c", "#dc2626"],
         "nombre": "Gestión de Riesgo",
         "sub": "y Primeros Auxilios",
-        "descripcion": "Gestión de emergencias, evacuación, simulacros y primeros auxilios ante desastres naturales y situaciones de riesgo.",
+        "desc": "Gestión de emergencias, evacuación, simulacros y primeros auxilios ante desastres naturales.",
+        "desc_larga": "Formación en prevención y respuesta ante emergencias y desastres naturales. Incluye planificación de rutas de evacuación, ejecución de simulacros, técnicas de primeros auxilios, manejo de extintores y coordinación con organismos de protección civil.",
     },
     {
         "key": "patrulla",
         "icono": ft.Icons.TRAFFIC,
-        "color_primario": "#ea580c",
-        "color_oscuro": "#9a3412",
-        "gradient": ["#c2410c", "#ea580c"],
+        "color": "#ea580c",
+        "grad": ["#c2410c", "#ea580c"],
         "nombre": "Patrulla Escolar",
         "sub": "Seguridad Vial",
-        "descripcion": "Seguridad vial, control de tránsito peatonal, protección de la comunidad escolar en zonas de alto riesgo.",
+        "desc": "Seguridad vial, control de tránsito peatonal y protección de la comunidad escolar.",
+        "desc_larga": "Educación en normas de tránsito y seguridad vial. Los estudiantes aprenden señalización, control de cruces peatonales, organización del flujo vehicular en horas de entrada y salida, y campañas de concientización sobre el uso del cinturón y el respeto a las señales.",
     },
     {
         "key": "convivencia",
         "icono": ft.Icons.HANDSHAKE,
-        "color_primario": "#64748b",
-        "color_oscuro": "#334155",
-        "gradient": ["#475569", "#64748b"],
+        "color": "#64748b",
+        "grad": ["#475569", "#64748b"],
         "nombre": "Convivencia y Paz",
         "sub": "Prevención Integral",
-        "descripcion": "Mediación de conflictos, cultura de paz, prevención de violencia escolar y promoción de valores de convivencia.",
+        "desc": "Mediación de conflictos, cultura de paz y prevención de violencia escolar.",
+        "desc_larga": "Promoción de la convivencia pacífica y prevención de la violencia. Incluye mediación de conflictos entre estudiantes, talleres de comunicación asertiva, campañas contra el bullying, fortalecimiento de valores como el respeto, la tolerancia y la solidaridad.",
     },
     {
         "key": "ecologica",
         "icono": ft.Icons.ECO,
-        "color_primario": "#059669",
-        "color_oscuro": "#065f46",
-        "gradient": ["#047857", "#059669"],
+        "color": "#059669",
+        "grad": ["#047857", "#059669"],
         "nombre": "Brigada Ecológica",
         "sub": "Medio Ambiente",
-        "descripcion": "Conservación ambiental, reciclaje, reforestación, cuidado del agua y educación ecológica en la comunidad.",
+        "desc": "Conservación ambiental, reciclaje, reforestación y educación ecológica.",
+        "desc_larga": "Cuidado y preservación del medio ambiente escolar y comunitario. Actividades de reciclaje, huertos escolares, jornadas de reforestación, ahorro de agua y energía, y campañas de sensibilización ambiental para toda la comunidad educativa.",
     },
 ]
+
+
+def _crear_tarjeta(page: ft.Page, cfg: dict, on_select):
+    """Crea una tarjeta interactiva con hover (panel deslizante) y clic (flip)."""
+    color = cfg["color"]
+    grad = cfg["grad"]
+    is_front = True
+
+    # ── Panel deslizante (hover) ──
+    panel_deslizante = ft.Container(
+        content=ft.Column([
+            ft.Text("Resumen", size=14, weight="w800", color="white", font_family="Outfit"),
+            ft.Text(cfg["desc"], size=13, color=ft.Colors.with_opacity(0.9, "white"),
+                    max_lines=3, overflow=ft.TextOverflow.ELLIPSIS, font_family="Outfit"),
+        ], spacing=4),
+        bgcolor=color,
+        padding=ft.Padding(24, 16, 24, 16),
+        height=110,
+        bottom=0, left=0, right=0,
+        offset=ft.Offset(0, 1.0),
+        animate_offset=ft.Animation(350, ft.AnimationCurve.EASE_OUT_CUBIC),
+    )
+
+    # ── Cara frontal ──
+    top_bar = ft.Container(
+        height=5, border_radius=ft.BorderRadius(3, 3, 0, 0),
+        gradient=ft.LinearGradient(colors=[color, grad[0], color],
+            begin=ft.Alignment(-1, 0), end=ft.Alignment(1, 0)),
+    )
+
+    icon_circle = ft.Container(
+        content=ft.Icon(cfg["icono"], color="white", size=44),
+        width=90, height=90, border_radius=45,
+        gradient=ft.LinearGradient(colors=grad,
+            begin=ft.Alignment.TOP_LEFT, end=ft.Alignment.BOTTOM_RIGHT),
+        alignment=ft.Alignment(0, 0),
+        shadow=[ft.BoxShadow(blur_radius=20, spread_radius=0,
+            color=ft.Colors.with_opacity(0.4, color), offset=ft.Offset(0, 8))],
+    )
+
+    contenido_base = ft.Container(
+        content=ft.Column([
+            top_bar,
+            ft.Container(height=24),
+            icon_circle,
+            ft.Container(height=16),
+            ft.Text(cfg["nombre"], size=22, weight="w800", color=COLOR_TEXTO,
+                    text_align=ft.TextAlign.CENTER, font_family="Outfit"),
+            ft.Text(cfg["sub"], size=13, weight="w500",
+                    color=ft.Colors.with_opacity(0.7, color),
+                    text_align=ft.TextAlign.CENTER, font_family="Outfit"),
+            ft.Container(expand=True),
+            ft.Row([
+                ft.Icon(ft.Icons.TOUCH_APP_ROUNDED, size=16, color=COLOR_TEXTO_SEC),
+                ft.Text("Clic para más info", size=12, color=COLOR_TEXTO_SEC,
+                        weight="w600", font_family="Outfit"),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=6),
+            ft.Container(height=20),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0),
+        width=_CARD_W, height=_CARD_H,
+    )
+
+    card_front = ft.Container(
+        content=ft.Stack([contenido_base, panel_deslizante]),
+        animate_scale=ft.Animation(250, ft.AnimationCurve.EASE_OUT_CUBIC),
+        scale=1.0,
+        bgcolor=ft.Colors.with_opacity(0.85, COLOR_CARD),
+        blur=ft.Blur(12, 12),
+        border_radius=20,
+        width=_CARD_W, height=_CARD_H,
+        clip_behavior=ft.ClipBehavior.HARD_EDGE,
+        shadow=_SHADOW_NORMAL,
+    )
+
+    # ── Botón ← regresar (arriba izquierda) ──
+    btn_back = ft.Container(
+        content=ft.Icon(ft.Icons.ARROW_BACK_ROUNDED, size=20, color="white"),
+        width=36, height=36, border_radius=18,
+        bgcolor=ft.Colors.with_opacity(0.25, "white"),
+        alignment=ft.Alignment(0, 0),
+    )
+
+    # ── Botón Ingresar (cara trasera) ──
+    btn_ingresar = ft.Container(
+        content=ft.Row([
+            ft.Text("Ingresar", size=15, weight="w700", color=color, font_family="Outfit"),
+            ft.Icon(ft.Icons.ARROW_FORWARD_ROUNDED, size=20, color=color),
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=6),
+        bgcolor="white", border_radius=12,
+        padding=ft.Padding(36, 12, 36, 12),
+        shadow=[ft.BoxShadow(blur_radius=12,
+            color=ft.Colors.with_opacity(0.2, "black"), offset=ft.Offset(0, 4))],
+        on_click=lambda _: on_select(cfg["key"]),
+    )
+
+    # ── Cara trasera ──
+    cara_trasera_container = ft.Container(
+        content=ft.Stack([
+            ft.Container(
+                content=ft.Column([
+                    ft.Container(height=44),
+                    ft.Icon(cfg["icono"], size=36, color=ft.Colors.with_opacity(0.3, "white")),
+                    ft.Container(height=6),
+                    ft.Text(cfg["nombre"], size=18, weight="w700", color="white",
+                            text_align=ft.TextAlign.CENTER, font_family="Outfit"),
+                    ft.Container(height=10),
+                    ft.Divider(height=1, color=ft.Colors.with_opacity(0.3, "white")),
+                    ft.Container(height=10),
+                    ft.Text(cfg["desc_larga"], size=13, color=ft.Colors.with_opacity(0.95, "white"),
+                            text_align=ft.TextAlign.CENTER, font_family="Outfit"),
+                    ft.Container(expand=True),
+                    btn_ingresar,
+                    ft.Container(height=10),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0),
+                padding=ft.Padding(24, 0, 24, 16),
+            ),
+            ft.Container(content=btn_back, top=12, left=12),
+        ]),
+        gradient=ft.LinearGradient(colors=[grad[0], color],
+            begin=ft.Alignment.TOP_LEFT, end=ft.Alignment.BOTTOM_RIGHT),
+        border_radius=20,
+        width=_CARD_W, height=_CARD_H,
+        clip_behavior=ft.ClipBehavior.HARD_EDGE,
+        shadow=[ft.BoxShadow(blur_radius=40, spread_radius=0,
+            color=ft.Colors.with_opacity(0.3, color), offset=ft.Offset(0, 16))],
+    )
+
+    # ── Keys + AnimatedSwitcher ──
+    cara_frontal = ft.Container(content=card_front, key="frontal")
+    cara_trasera = ft.Container(content=cara_trasera_container, key="trasera")
+
+    switcher = ft.AnimatedSwitcher(
+        content=cara_frontal,
+        transition=ft.AnimatedSwitcherTransition.SCALE,
+        duration=400,
+        switch_in_curve=ft.AnimationCurve.EASE_OUT_CUBIC,
+        switch_out_curve=ft.AnimationCurve.EASE_IN_CUBIC,
+    )
+
+    # ── Eventos ──
+    def on_enter(e):
+        nonlocal is_front
+        if is_front:
+            panel_deslizante.offset = ft.Offset(0, 0)
+            card_front.scale = 1.05
+            card_front.shadow = _SHADOW_HOVER
+            card_front.update()
+            panel_deslizante.update()
+
+    def on_exit(e):
+        nonlocal is_front
+        if is_front:
+            panel_deslizante.offset = ft.Offset(0, 1.0)
+            card_front.scale = 1.0
+            card_front.shadow = _SHADOW_NORMAL
+            card_front.update()
+            panel_deslizante.update()
+
+    def flip_to_back(e):
+        nonlocal is_front
+        if is_front:
+            panel_deslizante.offset = ft.Offset(0, 1.0)
+            card_front.scale = 1.0
+            card_front.shadow = _SHADOW_NORMAL
+            switcher.content = cara_trasera
+            is_front = False
+            switcher.update()
+
+    def flip_to_front(e):
+        nonlocal is_front
+        if not is_front:
+            switcher.content = cara_frontal
+            is_front = True
+            switcher.update()
+
+    btn_back.on_click = flip_to_front
+
+    return ft.GestureDetector(
+        content=switcher,
+        on_enter=on_enter,
+        on_exit=on_exit,
+        on_tap=flip_to_back,
+        mouse_cursor=ft.MouseCursor.CLICK,
+    )
 
 
 def build(page: ft.Page, on_select) -> ft.Control:
@@ -139,11 +330,6 @@ def build(page: ft.Page, on_select) -> ft.Control:
     except Exception:
         inst_nombre = ""
 
-    def _on_click(key):
-        def handler(_):
-            on_select(key)
-        return handler
-
     # ═══════════════════════════════════════════
     #  FONDO ANIMADO (igual que el login)
     # ═══════════════════════════════════════════
@@ -152,7 +338,7 @@ def build(page: ft.Page, on_select) -> ft.Control:
         _crear_blob(_GLOW_AMBAR, 80, 1100, 260),
         _crear_blob(_GLOW_VERDE, 550, 80, 300),
         _crear_blob(_GLOW_MORADO, 450, 1150, 260),
-        _crear_blob("#dc2626", 300, 600, 200),  # toque rojo para brigada Riesgo
+        _crear_blob("#dc2626", 300, 600, 200),
     ]
 
     # Partículas flotantes
@@ -184,26 +370,14 @@ def build(page: ft.Page, on_select) -> ft.Control:
         top=500, left=50, step_top=-8, step_left=6,
     )
 
-    # Animación de fondo + glow pulsante de iconos
-    icon_glow_refs = []
-
+    # Animación de fondo
     async def animate_background():
-        glow_phase = True
         while True:
             try:
                 icon_shield.animate_float()
                 icon_school.animate_float()
                 for p in particulas_animadas:
                     p.animate_float()
-                # Pulso de glow en los íconos de las tarjetas
-                for g in icon_glow_refs:
-                    if glow_phase:
-                        g.shadow = [ft.BoxShadow(blur_radius=45, spread_radius=10,
-                            color=g.data, offset=ft.Offset(0, 0))]
-                    else:
-                        g.shadow = [ft.BoxShadow(blur_radius=25, spread_radius=3,
-                            color=g.data, offset=ft.Offset(0, 0))]
-                glow_phase = not glow_phase
                 if page.controls:
                     page.update()
             except Exception:
@@ -226,7 +400,7 @@ def build(page: ft.Page, on_select) -> ft.Control:
     if inst_nombre:
         header_items.append(ft.Container(height=4))
         header_items.append(
-            ft.Text(inst_nombre, size=16, color=COLOR_TEXTO_SEC,
+            ft.Text(inst_nombre, size=20, weight="w600", color=COLOR_TEXTO,
                     text_align=ft.TextAlign.CENTER, italic=True, font_family="Outfit")
         )
     header_items.append(ft.Container(height=8))
@@ -245,160 +419,14 @@ def build(page: ft.Page, on_select) -> ft.Control:
     )
 
     # ═══════════════════════════════════════════
-    #  TARJETAS OVERLAY GLASSMORPHISM — PREMIUM
+    #  TARJETAS INTERACTIVAS — HOVER + FLIP
     # ═══════════════════════════════════════════
-    cards = []
-    card_refs = []
+    tarjetas = [_crear_tarjeta(page, cfg, on_select) for cfg in _BRIGADAS_CONFIG]
 
-    for idx, cfg in enumerate(_BRIGADAS_CONFIG):
-        desc_text = ft.Text(
-            cfg["descripcion"], size=13, color=COLOR_TEXTO_SEC,
-            text_align=ft.TextAlign.CENTER, font_family="Outfit",
-            max_lines=2, overflow=ft.TextOverflow.ELLIPSIS,
-        )
-
-        # Glow pulsante detrás del ícono (el 'data' guarda el color para la animación)
-        glow_color = ft.Colors.with_opacity(0.5, cfg["color_primario"])
-        icon_glow = ft.Container(
-            width=90, height=90, border_radius=45,
-            bgcolor=ft.Colors.TRANSPARENT,
-            shadow=[ft.BoxShadow(blur_radius=20, spread_radius=3,
-                color=glow_color, offset=ft.Offset(0, 0))],
-            animate=ft.Animation(1800, ft.AnimationCurve.EASE_IN_OUT),
-            data=glow_color,  # almacenar color para la animación
-        )
-        icon_glow_refs.append(icon_glow)
-
-        icon_circle = ft.Container(
-            content=ft.Icon(cfg["icono"], color="white", size=44),
-            width=90, height=90, border_radius=45,
-            gradient=ft.LinearGradient(
-                colors=cfg["gradient"],
-                begin=ft.Alignment.TOP_LEFT,
-                end=ft.Alignment.BOTTOM_RIGHT,
-            ),
-            alignment=ft.Alignment(0, 0),
-            shadow=[ft.BoxShadow(blur_radius=20, spread_radius=0,
-                color=ft.Colors.with_opacity(0.45, cfg["color_primario"]),
-                offset=ft.Offset(0, 10))],
-        )
-
-        icon_stack = ft.Container(
-            content=ft.Stack([icon_glow, icon_circle], alignment=ft.Alignment(0, 0)),
-            width=95, height=95,
-        )
-
-        card_content = ft.Column([
-            icon_stack,
-            ft.Container(height=14),
-            ft.Text(cfg["nombre"], size=24, weight="w800", color=COLOR_TEXTO,
-                    text_align=ft.TextAlign.CENTER, font_family="Outfit"),
-            ft.Container(height=4),
-            ft.Text(cfg["sub"], size=14, weight="w500",
-                    color=ft.Colors.with_opacity(0.7, cfg["color_primario"]),
-                    text_align=ft.TextAlign.CENTER, font_family="Outfit"),
-            ft.Container(height=8),
-            desc_text,
-            ft.Container(height=14),
-            # Botón "Ingresar"
-            ft.Container(
-                content=ft.Row([
-                    ft.Text("Ingresar", size=14, weight="w700", color="white", font_family="Outfit"),
-                    ft.Icon(ft.Icons.ARROW_FORWARD_ROUNDED, size=18, color="white"),
-                ], alignment=ft.MainAxisAlignment.CENTER, spacing=6),
-                bgcolor=cfg["color_primario"],
-                border_radius=10,
-                padding=ft.Padding(32, 10, 32, 10),
-                shadow=[ft.BoxShadow(blur_radius=16, spread_radius=0,
-                    color=ft.Colors.with_opacity(0.35, cfg["color_primario"]),
-                    offset=ft.Offset(0, 6))],
-            ),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0)
-
-        # Banda decorativa superior con gradiente triple
-        top_bar = ft.Container(
-            height=6, border_radius=ft.BorderRadius(3, 3, 0, 0),
-            gradient=ft.LinearGradient(
-                colors=[cfg["color_primario"], cfg["color_oscuro"], cfg["color_primario"]],
-                begin=ft.Alignment(-1, 0), end=ft.Alignment(1, 0)),
-        )
-
-        # Tarjeta glassmorphism — grande y premium
-        card = ft.Container(
-            content=ft.Column([
-                top_bar,
-                ft.Container(content=card_content, padding=ft.Padding(24, 20, 24, 24)),
-            ], spacing=0),
-            bgcolor=ft.Colors.with_opacity(0.88, COLOR_CARD),
-            blur=ft.Blur(18, 18),
-            border_radius=24,
-            border=ft.Border.all(1.5, ft.Colors.with_opacity(0.25, COLOR_BORDE)),
-            shadow=[
-                ft.BoxShadow(blur_radius=48, spread_radius=-6,
-                    color=ft.Colors.with_opacity(0.18, COLOR_TEXTO), offset=ft.Offset(0, 20)),
-                ft.BoxShadow(blur_radius=16, spread_radius=0,
-                    color=ft.Colors.with_opacity(0.06, COLOR_TEXTO), offset=ft.Offset(0, 8)),
-            ],
-            width=340,
-            on_click=_on_click(cfg["key"]),
-            ink=True,
-            # Animación de entrada
-            opacity=0,
-            offset=ft.Offset(0, 0.15),
-            animate_opacity=ft.Animation(600 + idx * 150, ft.AnimationCurve.EASE_OUT),
-            animate_offset=ft.Animation(600 + idx * 150, ft.AnimationCurve.EASE_OUT),
-            scale=1.0,
-            animate_scale=ft.Animation(250, ft.AnimationCurve.EASE_OUT),
-        )
-
-        # Hover dramático
-        def _make_hover(card_ref, color):
-            def handler(e):
-                is_hover = e.data == "true"
-                card_ref.scale = 1.06 if is_hover else 1.0
-                card_ref.shadow = [
-                    ft.BoxShadow(blur_radius=60 if is_hover else 48,
-                        spread_radius=4 if is_hover else -6,
-                        color=ft.Colors.with_opacity(0.4 if is_hover else 0.18, color),
-                        offset=ft.Offset(0, 24 if is_hover else 20)),
-                    ft.BoxShadow(blur_radius=20 if is_hover else 16,
-                        spread_radius=0,
-                        color=ft.Colors.with_opacity(0.1, COLOR_TEXTO),
-                        offset=ft.Offset(0, 8)),
-                ]
-                card_ref.border = ft.Border.all(
-                    2.5 if is_hover else 1.5,
-                    ft.Colors.with_opacity(0.6 if is_hover else 0.25,
-                        color if is_hover else COLOR_BORDE))
-                try:
-                    if page.controls:
-                        page.update()
-                except Exception:
-                    pass
-            return handler
-
-        card.on_hover = _make_hover(card, cfg["color_primario"])
-        cards.append(card)
-        card_refs.append(card)
-
-    # Grid 2x2
     grid = ft.Column([
-        ft.Row(cards[:2], alignment=ft.MainAxisAlignment.CENTER, spacing=32),
-        ft.Row(cards[2:], alignment=ft.MainAxisAlignment.CENTER, spacing=32),
-    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=32)
-
-    # ═══════════════════════════════════════════
-    #  ANIMACIÓN DE ENTRADA ESCALONADA
-    # ═══════════════════════════════════════════
-    async def _animar_entrada():
-        await asyncio.sleep(0.3)
-        for i, card in enumerate(card_refs):
-            card.opacity = 1.0
-            card.offset = ft.Offset(0, 0)
-            page.update()
-            await asyncio.sleep(0.15)
-
-    page.run_task(_animar_entrada)
+        ft.Row(tarjetas[:2], alignment=ft.MainAxisAlignment.CENTER, spacing=28),
+        ft.Row(tarjetas[2:], alignment=ft.MainAxisAlignment.CENTER, spacing=28),
+    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=28)
 
     # ═══════════════════════════════════════════
     #  COMPOSICIÓN FINAL

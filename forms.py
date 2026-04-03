@@ -1,5 +1,5 @@
 """
-Formularios CRUD del SGB — brigadas ambientales (tonos verdes).
+Formularios CRUD del SBE — brigadas ambientales (tonos verdes).
 """
 
 import flet as ft
@@ -1598,7 +1598,7 @@ def abrir_form_indicador_resumen(page: ft.Page):
 def abrir_dialogo_acerca_de(page: ft.Page):
     contenido = ft.Column(
         [
-            ft.Text("Sistema de Brigadas Escolares (SGB)", size=16, weight="w600", color=COLOR_TEXTO),
+            ft.Text("Sistema de Brigadas Escolares (SBE)", size=16, weight="w600", color=COLOR_TEXTO),
             ft.Container(height=8),
             ft.Text("Municipio Maracaibo — Gestión de brigadas escolares.", size=13, color=COLOR_TEXTO_SEC),
             ft.Container(height=12),
@@ -1640,7 +1640,7 @@ def abrir_dialogo_legal(page: ft.Page):
         [
             ft.Text("Términos de uso, licencias y créditos del sistema.", size=13, color=COLOR_TEXTO_SEC),
             ft.Container(height=12),
-            ft.Text("SGB — Uso institucional. Consulte con la entidad responsable.", size=13, color=COLOR_TEXTO_SEC),
+            ft.Text("SBE — Uso institucional. Consulte con la entidad responsable.", size=13, color=COLOR_TEXTO_SEC),
         ],
         spacing=0,
     )

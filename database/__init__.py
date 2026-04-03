@@ -1,1 +1,1 @@
-# Módulo de base de datos SGB
+# Módulo de base de datos SBE

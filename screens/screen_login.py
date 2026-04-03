@@ -331,28 +331,21 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
 
     boton_iniciar.on_click = lambda e: page.run_task(do_login, e)
 
-    # Header: icono de reciclaje con anillo y sombra 3D (paleta verde)
+    # Header: logo SBE grande y limpio
     header = ft.Column(
         [
             ft.Container(
-                content=ft.Icon(ft.Icons.RECYCLING, size=42, color="white"),
-                width=80,
-                height=80,
-                border_radius=40,
-                gradient=ft.LinearGradient(
-                    colors=[COLOR_PRIMARIO_CLARO, COLOR_PRIMARIO],
-                    begin=ft.Alignment.TOP_LEFT,
-                    end=ft.Alignment.BOTTOM_RIGHT,
-                ),
-                shadow=[
-                    ft.BoxShadow(blur_radius=20, color=ft.Colors.with_opacity(0.4, COLOR_PRIMARIO), offset=ft.Offset(0, 10)),
-                    ft.BoxShadow(color="white", spread_radius=2, blur_radius=0, offset=ft.Offset(0, 0)),
-                ],
+                content=ft.Image(src="uploads/logos/SBE.png", width=180, height=180, fit="contain"),
+                width=190,
+                height=190,
                 alignment=ft.Alignment.CENTER,
+                shadow=[
+                    ft.BoxShadow(blur_radius=24, color=ft.Colors.with_opacity(0.15, COLOR_PRIMARIO), offset=ft.Offset(0, 8)),
+                ],
             ),
             ft.Container(height=20),
             ft.Text("Sistema de Brigadas", size=28, weight="w800", color=COLOR_TEXTO, font_family="Roboto"),
-            ft.Text("Municipio Maracaibo", size=16, weight="w500", color=COLOR_TEXTO_SEC),
+            ft.Text("Municipio Maracaibo", size=18, weight="w600", color=COLOR_TEXTO),
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=0,

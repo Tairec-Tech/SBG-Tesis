@@ -1,5 +1,5 @@
 """
-Componentes reutilizables del SGB — estilo Figma, tema brigadas ambientales (verde).
+Componentes reutilizables del SBE — estilo Figma, tema brigadas ambientales (verde).
 """
 
 import json

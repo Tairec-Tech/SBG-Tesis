@@ -1,4 +1,4 @@
-# Pantallas del SGB — diseño Figma, brigadas ambientales (verde)
+# Pantallas del SBE — diseño Figma, brigadas ambientales (verde)
 
 from screens import (
     screen_dashboard,

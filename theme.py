@@ -1,5 +1,5 @@
 """
-Tema del SBG — Sistema Multi-Brigada.
+Tema del SBE — Sistema Multi-Brigada.
 4 paletas de color (una por tipo de brigada) + paleta neutra para auth.
 Soporte para modo claro y oscuro con ft.Theme y ft.ColorScheme.
 """

@@ -1,5 +1,5 @@
 """
-Conexión a MySQL para el SGB — con connection pool.
+Conexión a MySQL para el SBE — con connection pool.
 """
 import mysql.connector
 from mysql.connector import Error

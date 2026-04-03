@@ -1,5 +1,5 @@
 """
-CRUD de Brigada para el SGB.
+CRUD de Brigada para el SBE.
 Requiere haber ejecutado database/migrate_brigada_campos.sql si usas descripcion, coordinador, color.
 """
 from database.connection import get_connection

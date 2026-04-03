@@ -1,6 +1,6 @@
 """
 Sistema de Brigadas Escolares — Multi-Brigada (Municipio Maracaibo).
-Flujo: intro (bloques SGB neutros) → Login (neutro) → Selección de Brigada (2×2)
+Flujo: intro (bloques SBE neutros) → Login (neutro) → Selección de Brigada (2×2)
        → Transición (color de brigada) → App (sidebar + contenido).
 Soporta 4 tipos: Gestión de Riesgo, Patrulla Escolar, Convivencia y Paz, Ecológica.
 """
@@ -14,7 +14,7 @@ import flet as ft
 
 from util_log import log
 
-log("--- App SBG iniciando ---")
+log("--- App SBE iniciando ---")
 sys.stdout.flush()
 sys.stderr.flush()
 
@@ -44,6 +44,7 @@ ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 async def main(page: ft.Page):
     log("Ventana principal abierta")
     page.title = "Sistema de Brigadas Escolares"
+    page.window.icon = os.path.join(LOGOS_DIR, "SBE.ico")
     # Iniciar con paleta neutra para la intro y login
     aplicar_paleta_neutra(page)
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -57,26 +58,29 @@ async def main(page: ft.Page):
     page.fonts = {"Outfit": "https://raw.githubusercontent.com/nicholasmireles/fonts/main/ofl/outfit/Outfit%5Bwght%5D.ttf"}
     page.update()
 
-    # ----- Animación de entrada: bloques SGB (tonos neutros) -----
+    # ----- Animación de entrada: bloques SBE (tonos neutros) -----
     size_bloque = 14
     gap_bloque = 4
     duracion_anim = 1200
-    # Tres tonos neutros para S, G, B
+    # Tres tonos neutros para S, B, E
     c_s = HEX_NEUTRA_PRIMARIO_OSCURO
-    c_g = HEX_NEUTRA_PRIMARIO
-    c_b = HEX_NEUTRA_PRIMARIO_CLARO
-    partes_sgb = [
+    c_b = HEX_NEUTRA_PRIMARIO
+    c_e = HEX_NEUTRA_PRIMARIO_CLARO
+    partes_sbe = [
+        # S (cols 0-2)
         (0, 0, c_s), (1, 0, c_s), (2, 0, c_s), (0, 1, c_s), (0, 2, c_s), (1, 2, c_s), (2, 2, c_s), (2, 3, c_s), (0, 4, c_s), (1, 4, c_s), (2, 4, c_s),
-        (4, 0, c_g), (5, 0, c_g), (6, 0, c_g), (4, 1, c_g), (4, 2, c_g), (5, 2, c_g), (6, 2, c_g), (4, 3, c_g), (6, 3, c_g), (4, 4, c_g), (5, 4, c_g), (6, 4, c_g),
-        (8, 0, c_b), (9, 0, c_b), (10, 0, c_b), (8, 1, c_b), (10, 1, c_b), (8, 2, c_b), (9, 2, c_b), (10, 2, c_b), (8, 3, c_b), (10, 3, c_b), (8, 4, c_b), (9, 4, c_b), (10, 4, c_b),
+        # B (cols 4-6)
+        (4, 0, c_b), (5, 0, c_b), (6, 0, c_b), (4, 1, c_b), (6, 1, c_b), (4, 2, c_b), (5, 2, c_b), (6, 2, c_b), (4, 3, c_b), (6, 3, c_b), (4, 4, c_b), (5, 4, c_b), (6, 4, c_b),
+        # E (cols 8-10)
+        (8, 0, c_e), (9, 0, c_e), (10, 0, c_e), (8, 1, c_e), (8, 2, c_e), (9, 2, c_e), (10, 2, c_e), (8, 3, c_e), (8, 4, c_e), (9, 4, c_e), (10, 4, c_e),
     ]
     ancho_canvas = 11 * (size_bloque + gap_bloque)
     alto_canvas = 5 * (size_bloque + gap_bloque)
     bloques_containers = [
         ft.Container(animate=duracion_anim, animate_position=duracion_anim, animate_rotation=duracion_anim)
-        for _ in partes_sgb
+        for _ in partes_sbe
     ]
-    canvas_sgb = ft.Stack(
+    canvas_sbe = ft.Stack(
         controls=bloques_containers,
         width=ancho_canvas,
         height=alto_canvas,
@@ -86,29 +90,29 @@ async def main(page: ft.Page):
 
     def dispersar_bloques():
         random.seed()
-        for i in range(len(partes_sgb)):
-            c = canvas_sgb.controls[i]
+        for i in range(len(partes_sbe)):
+            c = canvas_sbe.controls[i]
             tam = random.randrange(size_bloque - 2, size_bloque + 10)
             c.left = random.randrange(0, max(1, ancho_canvas - tam))
             c.top = random.randrange(0, max(1, alto_canvas - tam))
-            c.bgcolor = partes_sgb[i][2]
+            c.bgcolor = partes_sbe[i][2]
             c.width, c.height = tam, tam
             c.border_radius = random.randrange(2, 8)
             c.rotate = random.randrange(-30, 30) * 3.14159 / 180
-        canvas_sgb.scale = 0.85
-        canvas_sgb.opacity = 0.9
+        canvas_sbe.scale = 0.85
+        canvas_sbe.opacity = 0.9
 
     def ensamblar_bloques():
-        for i, (col, fila, color) in enumerate(partes_sgb):
-            c = canvas_sgb.controls[i]
+        for i, (col, fila, color) in enumerate(partes_sbe):
+            c = canvas_sbe.controls[i]
             c.left = col * (size_bloque + gap_bloque)
             c.top = fila * (size_bloque + gap_bloque)
             c.bgcolor = color
             c.width = c.height = size_bloque
             c.border_radius = 4
             c.rotate = 0
-        canvas_sgb.scale = 1
-        canvas_sgb.opacity = 1
+        canvas_sbe.scale = 1
+        canvas_sbe.opacity = 1
 
     texto_subtitulo_intro = ft.Text(
         "Sistema de Brigadas Escolares",
@@ -297,7 +301,7 @@ async def main(page: ft.Page):
     intro_overlay = ft.Container(
         content=ft.Column(
             [
-                ft.Container(content=canvas_sgb, scale=2.2),
+                ft.Container(content=canvas_sbe, scale=2.2),
                 ft.Container(height=56),
                 texto_subtitulo_intro_container,
             ],
