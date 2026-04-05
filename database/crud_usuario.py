@@ -1,6 +1,9 @@
 """
 CRUD de Usuario e Institucion para login y registro.
 """
+import secrets
+import hashlib
+from datetime import datetime, timedelta
 from database.connection import get_connection
 from database.auth import hash_password, verificar_password
 
@@ -521,7 +524,7 @@ def eliminar_usuario(id_usuario: int) -> str | None:
 
 
 def resetear_contrasena(email: str, nueva_contrasena_plana: str) -> bool:
-    """Resetea la contraseña de un usuario por email. Retorna True si se actualizó, False si no existe."""
+    """Resetea la contraseña de un usuario por email de forma directa (legacy/interno)."""
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -531,6 +534,88 @@ def resetear_contrasena(email: str, nueva_contrasena_plana: str) -> bool:
         )
         conn.commit()
         return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def invalidar_tokens_usuario(usuario_id: int):
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE password_resets SET used_at = NOW() WHERE usuario_id = %s AND used_at IS NULL", (usuario_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def crear_token_recuperacion(email: str):
+    """
+    Invalida previos, genera un token, lo guarda hasheado y retorna el token crudo.
+    Si el usuario solicita > 3 en la última hora, lanza excepción por rate limit.
+    Retorna el (token_crudo, usuario_id) o None si el usuario no existe.
+    """
+    usuario = buscar_usuario_por_email(email)
+    if not usuario:
+        return None
+
+    usuario_id = usuario["idUsuario"]
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(dictionary=True)
+        # Limite anti-spam (3 por hora)
+        cursor.execute("SELECT COUNT(*) as count FROM password_resets WHERE usuario_id = %s AND created_at >= NOW() - INTERVAL 1 HOUR", (usuario_id,))
+        row = cursor.fetchone()
+        if row and row['count'] >= 3:
+            raise Exception("Demasiadas solicitudes. Intente de nuevo en una hora.")
+
+        # Invalida antiguos
+        cursor.execute("UPDATE password_resets SET used_at = NOW() WHERE usuario_id = %s AND used_at IS NULL", (usuario_id,))
+        
+        # Genera el nuevo
+        token_crudo = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token_crudo.encode()).hexdigest()
+        expires_at = datetime.now() + timedelta(minutes=15)
+        
+        cursor.execute(
+            "INSERT INTO password_resets (usuario_id, token_hash, expires_at) VALUES (%s, %s, %s)",
+            (usuario_id, token_hash, expires_at)
+        )
+        conn.commit()
+        return token_crudo, usuario_id
+    finally:
+        conn.close()
+
+
+def procesar_reseteo_con_token(token_crudo: str, nueva_contrasena_plana: str):
+    """
+    Valida token, y cambia la contraseña si está vigente y es genuino.
+    Retorna True si tuvo éxito o levanta una excepción / retorna False si es inválido.
+    """
+    token_hash = hashlib.sha256(token_crudo.strip().encode()).hexdigest()
+    
+    conn = get_connection()
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, usuario_id, expires_at, used_at FROM password_resets WHERE token_hash = %s", (token_hash,))
+        record = cursor.fetchone()
+        
+        if not record:
+            return False # Token no existe
+            
+        if record['used_at'] is not None:
+            return False # Ya fue usado
+            
+        if record['expires_at'] < datetime.now():
+            return False # Expirado
+            
+        usuario_id = record['usuario_id']
+        
+        cursor.execute("UPDATE Usuario SET contrasena = %s WHERE idUsuario = %s", (hash_password(nueva_contrasena_plana), usuario_id))
+        cursor.execute("UPDATE password_resets SET used_at = NOW() WHERE id = %s", (record['id'],))
+        conn.commit()
+        
+        return True
     finally:
         conn.close()
 

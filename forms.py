@@ -40,6 +40,8 @@ _CAMPO_BASE = dict(
     cursor_color=COLOR_PRIMARIO,
     content_padding=_CAMPO_PADDING,
 )
+# Dropdown no soporta cursor_color en Flet 0.80.5
+_DROPDOWN_BASE = {k: v for k, v in _CAMPO_BASE.items() if k != "cursor_color"}
 
 
 def _etiqueta(texto: str) -> ft.Control:
@@ -159,7 +161,7 @@ def _dialogo_formulario(
             ft.FilledButton(
                 texto_guardar,
                 style=ft.ButtonStyle(bgcolor=COLOR_PRIMARIO, color="white"),
-                on_click=lambda e: (on_guardar(e) if on_guardar else None, _cerrar_dialogo(e.page)),
+                on_click=lambda e: on_guardar(e) if on_guardar else None,
             ),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
@@ -756,22 +758,34 @@ def abrir_form_brigada_eliminar(page: ft.Page, brigada=None, on_success=None):
 
     def on_eliminar(_):
         if not id_brigada_val:
-            page.snack_bar = ft.SnackBar(ft.Text("Error: no se identificó la brigada"))
+            page.snack_bar = ft.SnackBar(ft.Text("Error: no se identificó la brigada", color="white"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
             return
+
+        # 1. Ejecutar acción en BD
         err = eliminar_brigada(id_brigada_val)
-        if err:
-            page.snack_bar = ft.SnackBar(ft.Text(err))
+
+        # 2. Cerrar el modal y FORZAR la actualización visual
+        _cerrar_dialogo(page)
+        page.update()
+
+        # 3. Micro-pausa no bloqueante para aislar los updates de Flet (condición de carrera)
+        import threading
+        import time
+
+        def show_msg():
+            time.sleep(0.2)
+            if err:
+                page.snack_bar = ft.SnackBar(ft.Text(err, color="white"), bgcolor="#ef4444")
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("Brigada eliminada correctamente", color="white"), bgcolor="#22c55e")
+                if on_success:
+                    on_success()
             page.snack_bar.open = True
             page.update()
-            return
-        _cerrar_dialogo(page)
-        page.snack_bar = ft.SnackBar(ft.Text("Brigada eliminada correctamente"), bgcolor="#22c55e")
-        page.snack_bar.open = True
-        if on_success:
-            on_success()
-        page.update()
+
+        threading.Thread(target=show_msg).start()
 
     contenido = ft.Column(
         [
@@ -1061,7 +1075,7 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
             ft.dropdown.Option("Coordinador", "Coordinador"),
             ft.dropdown.Option("Directivo", "Directivo"),
         ],
-        **_CAMPO_BASE,
+        **_DROPDOWN_BASE,
     )
     brigadas_opciones = []
     try:
@@ -1073,7 +1087,7 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
         label="Brigada",
         value=str(brigadista.get("Brigada_idBrigada") or ""),
         options=brigadas_opciones,
-        **_CAMPO_BASE,
+        **_DROPDOWN_BASE,
     )
 
     def on_guardar(_):

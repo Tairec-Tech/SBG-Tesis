@@ -15,8 +15,8 @@ from components import titulo_pagina, boton_primario, card_principal
 from database.crud_usuario import listar_brigadistas_visibles_only, es_profesor
 
 
-def _filtrar_brigadistas(lista, nombre=None, apellido=None, cedula=None, rol=None):
-    """Filtra por nombre, apellido, cédula, rol. Valores vacíos no filtran."""
+def _filtrar_brigadistas(lista, nombre=None, apellido=None, cedula=None, rol=None, brigada_id=None):
+    """Filtra por nombre, apellido, cédula, rol y brigada. Valores vacíos no filtran."""
     if not lista:
         return []
     out = lista
@@ -33,6 +33,11 @@ def _filtrar_brigadistas(lista, nombre=None, apellido=None, cedula=None, rol=Non
             out = [u for u in out if u.get("rol") in ("Brigadista Jefe", "Subjefe", "Brigadista")]
         else:
             out = [u for u in out if (u.get("rol") or "").lower() == rol.lower()]
+    if brigada_id and (brigada_id := str(brigada_id).strip()):
+        if brigada_id == "__sin_brigada__":
+            out = [u for u in out if not u.get("Brigada_idBrigada")]
+        else:
+            out = [u for u in out if str(u.get("Brigada_idBrigada") or "") == brigada_id]
     return out
 
 
@@ -141,6 +146,37 @@ def _build_filtros_y_lista(page, refresh_callback=None):
         on_select=lambda e: _aplicar_filtro(),
     )
 
+    opciones_brigada = [ft.dropdown.Option("", "Todas las brigadas")]
+    brigadas_vistas = set()
+    incluir_sin_brigada = False
+    for u in lista:
+        brigada_id = u.get("Brigada_idBrigada")
+        brigada_nombre = (u.get("nombre_brigada") or "").strip()
+        if brigada_id:
+            key = str(brigada_id)
+            if key not in brigadas_vistas:
+                brigadas_vistas.add(key)
+                opciones_brigada.append(
+                    ft.dropdown.Option(key, brigada_nombre or f"Brigada {brigada_id}")
+                )
+        else:
+            incluir_sin_brigada = True
+    if incluir_sin_brigada:
+        opciones_brigada.append(ft.dropdown.Option("__sin_brigada__", "Sin brigada"))
+
+    filtro_brigada = ft.Dropdown(
+        hint_text="Brigada",
+        width=190,
+        height=42,
+        options=opciones_brigada,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        text_size=13,
+        content_padding=ft.Padding(12, 10),
+        dense=True,
+        on_select=lambda e: _aplicar_filtro(),
+    )
+
     contenedor_lista = ft.Container()
 
     def _aplicar_filtro():
@@ -148,8 +184,16 @@ def _build_filtros_y_lista(page, refresh_callback=None):
         ape = filtro_apellido.value or ""
         ced = filtro_cedula.value or ""
         rol = filtro_rol.value or ""
-        tiene_filtro = bool(nom.strip() or ape.strip() or ced.strip() or rol.strip())
-        filtrados = _filtrar_brigadistas(lista, nombre=nom or None, apellido=ape or None, cedula=ced or None, rol=rol or None)
+        brigada = filtro_brigada.value or ""
+        tiene_filtro = bool(nom.strip() or ape.strip() or ced.strip() or rol.strip() or brigada.strip())
+        filtrados = _filtrar_brigadistas(
+            lista,
+            nombre=nom or None,
+            apellido=ape or None,
+            cedula=ced or None,
+            rol=rol or None,
+            brigada_id=brigada or None,
+        )
         contenedor_lista.content = _build_lista_interna(
             page, filtrados, tiene_filtro, refresh_callback
         )
@@ -160,6 +204,7 @@ def _build_filtros_y_lista(page, refresh_callback=None):
         filtro_apellido.value = ""
         filtro_cedula.value = ""
         filtro_rol.value = ""
+        filtro_brigada.value = ""
         _aplicar_filtro()
 
     # Lista inicial: dos secciones
@@ -176,6 +221,7 @@ def _build_filtros_y_lista(page, refresh_callback=None):
             filtro_apellido,
             filtro_cedula,
             filtro_rol,
+            filtro_brigada,
             ft.OutlinedButton(
                 "Limpiar filtros",
                 icon=ft.Icons.CLEAR_ALL_ROUNDED,
@@ -203,7 +249,7 @@ def _build_filtros_y_lista(page, refresh_callback=None):
                 ),
                 ft.Container(height=12),
                 ft.Text(
-                    "Busque por nombre, apellido, cédula o rol. Por defecto se muestran Profesores y Alumnos por separado.",
+                    "Busque por nombre, apellido, cédula, rol o brigada. Por defecto se muestran Profesores y Alumnos por separado.",
                     size=12,
                     color=COLOR_TEXTO_SEC,
                 ),

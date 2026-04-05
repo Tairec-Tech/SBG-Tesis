@@ -2,7 +2,7 @@
 CRUD para la tabla `turno` — Turnos y Horarios de Brigadas.
 Filtrado por tipo_brigada para aislamiento de datos.
 """
-from database.connection import ejecutar
+from database.connection import ejecutar, ejecutar_modificar
 
 
 def _asegurar_tabla_turno():
@@ -65,7 +65,8 @@ def listar_turnos(brigada_id: int | None = None, tipo_brigada=None):
 
     sql = f"""
     SELECT t.idTurno, t.fecha, t.hora_inicio, t.hora_fin, t.ubicacion, t.notas,
-           t.estado, b.nombre_brigada, b.color_identificador
+           t.estado, b.nombre_brigada, b.color_identificador,
+           b.profesor_id, t.Brigada_idBrigada
     FROM turno t
     JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada
     {where}
@@ -85,6 +86,8 @@ def listar_turnos(brigada_id: int | None = None, tipo_brigada=None):
             "estado": r[6],
             "brigada": r[7],
             "color": r[8] or "#2563eb",
+            "profesor_id": r[9],
+            "brigada_id": r[10],
         })
     return turnos
 
@@ -134,4 +137,21 @@ def eliminar_turno(turno_id: int) -> bool:
         return True
     except Exception as e:
         print(f"Error eliminando turno: {e}")
+        return False
+
+
+def actualizar_turno(turno_id: int, fecha: str, hora_inicio: str, hora_fin: str,
+                     ubicacion: str = "", notas: str = "", estado: str = "Programado") -> bool:
+    """Actualiza un turno existente."""
+    sql = """
+    UPDATE turno
+    SET fecha = %s, hora_inicio = %s, hora_fin = %s,
+        ubicacion = %s, notas = %s, estado = %s
+    WHERE idTurno = %s
+    """
+    try:
+        afectadas = ejecutar_modificar(sql, (fecha, hora_inicio, hora_fin, ubicacion, notas, estado, turno_id))
+        return afectadas > 0
+    except Exception as e:
+        print(f"Error actualizando turno: {e}")
         return False

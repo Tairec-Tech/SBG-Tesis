@@ -38,7 +38,8 @@ CREATE TABLE `actividad` (
   `descripcion` text NOT NULL,
   `fecha_inicio` date NOT NULL,
   `fecha_fin` date NOT NULL,
-  `Brigada_idBrigada` int(11) NOT NULL
+  `Brigada_idBrigada` int(11) NOT NULL,
+  `Usuario_idUsuarioCreador` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 -- --------------------------------------------------------
@@ -158,6 +159,21 @@ CREATE TABLE `usuario` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `password_resets`
+--
+
+CREATE TABLE `password_resets` (
+  `id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `configuracion` (mensaje del día, etc.)
 --
 CREATE TABLE IF NOT EXISTS `configuracion` (
@@ -179,7 +195,8 @@ ON DUPLICATE KEY UPDATE `clave` = `clave`;
 --
 ALTER TABLE `actividad`
   ADD PRIMARY KEY (`idActividad`),
-  ADD KEY `fk_Actividad_Brigada1_idx` (`Brigada_idBrigada`);
+  ADD KEY `fk_Actividad_Brigada1_idx` (`Brigada_idBrigada`),
+  ADD KEY `idx_actividad_creador` (`Usuario_idUsuarioCreador`);
 
 --
 -- Indices de la tabla `brigada`
@@ -238,6 +255,14 @@ ALTER TABLE `usuario`
   ADD KEY `idx_usuario_institucion` (`Institucion_Educativa_idInstitucion`);
 
 --
+-- Indices de la tabla `password_resets`
+--
+ALTER TABLE `password_resets`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_password_resets_usuario_idx` (`usuario_id`),
+  ADD KEY `idx_password_resets_token` (`token_hash`);
+
+--
 -- AUTO_INCREMENT de las tablas volcadas
 --
 
@@ -290,6 +315,12 @@ ALTER TABLE `usuario`
   MODIFY `idUsuario` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `password_resets`
+--
+ALTER TABLE `password_resets`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- Restricciones para tablas volcadas
 --
 
@@ -297,7 +328,8 @@ ALTER TABLE `usuario`
 -- Filtros para la tabla `actividad`
 --
 ALTER TABLE `actividad`
-  ADD CONSTRAINT `fk_Actividad_Brigada1` FOREIGN KEY (`Brigada_idBrigada`) REFERENCES `brigada` (`idBrigada`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+  ADD CONSTRAINT `fk_Actividad_Brigada1` FOREIGN KEY (`Brigada_idBrigada`) REFERENCES `brigada` (`idBrigada`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `fk_actividad_usuario_creador` FOREIGN KEY (`Usuario_idUsuarioCreador`) REFERENCES `usuario` (`idUsuario`) ON DELETE SET NULL ON UPDATE NO ACTION;
 
 --
 -- Filtros para la tabla `brigada`
@@ -336,6 +368,13 @@ ALTER TABLE `reporte_actividad`
 --
 ALTER TABLE `usuario`
   ADD CONSTRAINT `fk_Usuario_Brigada1` FOREIGN KEY (`Brigada_idBrigada`) REFERENCES `brigada` (`idBrigada`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Filtros para la tabla `password_resets`
+--
+ALTER TABLE `password_resets`
+  ADD CONSTRAINT `fk_password_resets_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`idUsuario`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

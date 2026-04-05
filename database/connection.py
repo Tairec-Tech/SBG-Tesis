@@ -63,3 +63,21 @@ def ejecutar(consulta, params=None, commit=False):
     finally:
         if conn.is_connected():
             conn.close()
+
+
+def ejecutar_modificar(consulta, params=None):
+    """
+    Ejecuta un UPDATE o DELETE y retorna el número de filas afectadas (rowcount).
+    Hace commit automáticamente.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(consulta, params or ())
+        conn.commit()
+        afectadas = cursor.rowcount
+        cursor.close()
+        return afectadas
+    finally:
+        if conn.is_connected():
+            conn.close()

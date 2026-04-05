@@ -199,7 +199,10 @@ def eliminar_brigada(id_brigada: int) -> str | None:
         conn.commit()
         return None
     except Exception as e:
-        return str(e)
+        error_msg = str(e)
+        if "foreign key constraint fails" in error_msg.lower() or "cannot delete or update a parent row" in error_msg.lower():
+            return "No se puede eliminar: La brigada tiene Actividades o Turnos registrados."
+        return error_msg
     finally:
         conn.close()
 

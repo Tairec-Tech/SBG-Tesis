@@ -1,7 +1,7 @@
 import flet as ft
 from theme import COLOR_PRIMARIO, COLOR_TEXTO, COLOR_CARD, COLOR_BORDE
 
-def create_auth_theme_toggle(page: ft.Page) -> ft.Container:
+def create_auth_theme_toggle(page: ft.Page, on_toggle=None) -> ft.Container:
     """Botón flotante (sol/luna) para cambiar el tema en las pantallas de Auth (Login, Registro, Recuperar)."""
 
     def on_toggle_theme(e):
@@ -11,6 +11,8 @@ def create_auth_theme_toggle(page: ft.Page) -> ft.Container:
             page.theme_mode = ft.ThemeMode.LIGHT
         
         actualizar_icono()
+        if on_toggle:
+            on_toggle()
         page.update()
 
     btn_icon = ft.Icon(

@@ -92,11 +92,19 @@ def _generar_contrasena_temporal(longitud=8) -> str:
 
 
 def build(page: ft.Page, on_back_to_login) -> ft.Control:
+    current_email = [None]
+
+    def get_field_colors():
+        dark = page.theme_mode == ft.ThemeMode.DARK
+        return {
+            "hint": ft.Colors.WHITE60 if dark else ft.Colors.BLACK54,
+            "label": ft.Colors.WHITE70 if dark else ft.Colors.BLACK87,
+            "text": ft.Colors.WHITE if dark else ft.Colors.BLACK,
+        }
+
     campo_email = ft.TextField(
         label="Correo Electrónico",
         hint_text="Ingrese su correo electrónico",
-        hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
-        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         border_color=COLOR_BORDE,
         focused_border_color=COLOR_PRIMARIO,
         cursor_color=COLOR_PRIMARIO,
@@ -104,7 +112,112 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
         border_radius=12,
     )
 
-    def on_recuperar(_):
+    campo_token = ft.TextField(
+        label="Token de Recuperación",
+        hint_text="Ingrese el token recibido",
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        cursor_color=COLOR_PRIMARIO,
+        width=320,
+        border_radius=12,
+    )
+    
+    campo_nueva_pass = ft.TextField(
+        label="Nueva Contraseña",
+        hint_text="Ingrese nueva contraseña",
+        password=True,
+        can_reveal_password=True,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        cursor_color=COLOR_PRIMARIO,
+        width=320,
+        border_radius=12,
+    )
+
+    campo_conf_pass = ft.TextField(
+        label="Confirmar Contraseña",
+        hint_text="Repita su nueva contraseña",
+        password=True,
+        can_reveal_password=True,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        cursor_color=COLOR_PRIMARIO,
+        width=320,
+        border_radius=12,
+    )
+
+    def update_field_styles():
+        colors = get_field_colors()
+        for field in [campo_email, campo_token, campo_nueva_pass, campo_conf_pass]:
+            field.hint_style = ft.TextStyle(size=14, color=colors["hint"])
+            field.label_style = ft.TextStyle(size=14, color=colors["label"])
+            field.text_style = ft.TextStyle(size=14, color=colors["text"])
+
+    # Inicializar con el color de tema actual
+    update_field_styles()
+
+    columna_card = ft.Column(
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=0,
+    )
+
+    def render_step1():
+        columna_card.controls.clear()
+        columna_card.controls.extend([
+            ft.Text("Correo Electrónico", size=14, weight="w500", color=COLOR_TEXTO),
+            ft.Container(height=8),
+            campo_email,
+            ft.Container(height=24),
+            ft.FilledButton(
+                content=ft.Text("Recuperar Contraseña", size=16, weight="w600"),
+                style=ft.ButtonStyle(color="white", bgcolor=COLOR_PRIMARIO, shape=ft.RoundedRectangleBorder(radius=12), padding=ft.Padding.symmetric(vertical=16, horizontal=24)),
+                width=320,
+                on_click=on_recuperar_solicitar,
+            ),
+            ft.Container(height=20),
+            ft.TextButton(
+                content=ft.Row(
+                    [ft.Icon(ft.Icons.ARROW_BACK, size=18, color=COLOR_PRIMARIO), ft.Text("← Volver al Login", size=14, color=COLOR_PRIMARIO)],
+                    spacing=8,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                on_click=lambda e: on_back_to_login(),
+            ),
+        ])
+        if page.controls:
+            page.update()
+
+    def render_step2():
+        columna_card.controls.clear()
+        columna_card.controls.extend([
+            ft.Text("Restablecer Contraseña", size=14, weight="w500", color=COLOR_TEXTO),
+            ft.Container(height=8),
+            campo_token,
+            ft.Container(height=16),
+            campo_nueva_pass,
+            ft.Container(height=16),
+            campo_conf_pass,
+            ft.Container(height=24),
+            ft.FilledButton(
+                content=ft.Text("Confirmar Cambio", size=16, weight="w600"),
+                style=ft.ButtonStyle(color="white", bgcolor=COLOR_PRIMARIO, shape=ft.RoundedRectangleBorder(radius=12), padding=ft.Padding.symmetric(vertical=16, horizontal=24)),
+                width=320,
+                on_click=on_recuperar_confirmar,
+            ),
+            ft.Container(height=20),
+            ft.TextButton(
+                content=ft.Row(
+                    [ft.Icon(ft.Icons.ARROW_BACK, size=18, color=COLOR_PRIMARIO), ft.Text("← Volver", size=14, color=COLOR_PRIMARIO)],
+                    spacing=8,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                on_click=lambda e: render_step1(),
+            ),
+        ])
+        if page.controls:
+            page.update()
+
+    def on_recuperar_solicitar(_):
         email = (campo_email.value or "").strip()
         if not email:
             page.snack_bar = ft.SnackBar(ft.Text("Ingrese un correo electrónico."), bgcolor="#ef4444")
@@ -113,53 +226,77 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
             return
 
         try:
-            from database.crud_usuario import buscar_usuario_por_email, resetear_contrasena
-
-            usuario = buscar_usuario_por_email(email)
-            if not usuario:
-                # Mensaje genérico por seguridad (no revelar si el email existe)
-                page.snack_bar = ft.SnackBar(
-                    ft.Text("Si el correo está registrado, se generará una nueva contraseña."),
-                    bgcolor=COLOR_PRIMARIO,
-                )
-                page.snack_bar.open = True
-                page.update()
-                return
-
-            # Generar contraseña temporal y actualizarla en BD
-            temp_pass = _generar_contrasena_temporal()
-            resetear_contrasena(email, temp_pass)
-
-            # Mostrar la contraseña temporal al usuario
-            page.snack_bar = ft.SnackBar(
-                content=ft.Column(
-                    [
-                        ft.Text("✅ Contraseña restablecida", weight="bold", color="white", size=14),
-                        ft.Text(f"Su nueva contraseña temporal es:", color="white", size=13),
-                        ft.Container(
-                            content=ft.Text(temp_pass, size=18, weight="bold", color="white", selectable=True),
-                            bgcolor=ft.Colors.with_opacity(0.3, "white"),
-                            padding=ft.Padding.symmetric(vertical=8, horizontal=16),
-                            border_radius=8,
-                        ),
-                        ft.Text("Cámbiela después de iniciar sesión.", color="white", size=12, italic=True),
-                    ],
-                    spacing=6,
-                    horizontal_alignment=ft.CrossAxisAlignment.START,
-                ),
-                bgcolor="#059669",
-                duration=15000,  # 15 segundos para que pueda copiarla
-            )
+            from database.crud_usuario import crear_token_recuperacion
+            
+            # Siempre se emite el feedback de continuación al usuario
+            mensaje_generico = "Si el correo existe, se generaron instrucciones de recuperación para el canal de desarrollo configurado."
+            page.snack_bar = ft.SnackBar(ft.Text(mensaje_generico), bgcolor=COLOR_PRIMARIO)
             page.snack_bar.open = True
-            page.update()
+            
+            resultado = crear_token_recuperacion(email)
+            if resultado:
+                token_crudo, _ = resultado
+                print(f"\n[DEV] Token Generado para {email}: {token_crudo}\n")
+                
+            current_email[0] = email
+            render_step2()
 
         except Exception as e:
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"Error: {e}"),
-                bgcolor="#ef4444",
-            )
+            if "Demasiadas solicitudes" in str(e):
+                page.snack_bar = ft.SnackBar(ft.Text(str(e)), bgcolor="#ef4444")
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Error: {e}"), bgcolor="#ef4444")
             page.snack_bar.open = True
             page.update()
+
+    def on_recuperar_confirmar(_):
+        token = (campo_token.value or "").strip()
+        pwd1 = (campo_nueva_pass.value or "").strip()
+        pwd2 = (campo_conf_pass.value or "").strip()
+        
+        if not token:
+            page.snack_bar = ft.SnackBar(ft.Text("Ingrese el token."), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+            
+        if not pwd1:
+            page.snack_bar = ft.SnackBar(ft.Text("La contraseña no puede estar vacía."), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+            
+        if len(pwd1) < 6:
+            page.snack_bar = ft.SnackBar(ft.Text("La contraseña debe tener al menos 6 caracteres."), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+            
+        if pwd1 != pwd2:
+            page.snack_bar = ft.SnackBar(ft.Text("Las contraseñas no coinciden."), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+            return
+            
+        try:
+            from database.crud_usuario import procesar_reseteo_con_token
+            exito = procesar_reseteo_con_token(token, pwd1)
+            if exito:
+                page.snack_bar = ft.SnackBar(ft.Text("Contraseña restablecida correctamente. Inicie sesión."), bgcolor="#059669")
+                page.snack_bar.open = True
+                page.update()
+                on_back_to_login()
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text("Token inválido o expirado."), bgcolor="#ef4444")
+                page.snack_bar.open = True
+                page.update()
+        except Exception as e:
+            page.snack_bar = ft.SnackBar(ft.Text(f"Error al restablecer: {e}"), bgcolor="#ef4444")
+            page.snack_bar.open = True
+            page.update()
+
+    # Iniciar estado en step 1
+    render_step1()
 
     header = ft.Column(
         [
@@ -184,31 +321,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
     )
 
     card = ft.Container(
-        content=ft.Column(
-            [
-                ft.Text("Correo Electrónico", size=14, weight="w500", color=COLOR_TEXTO),
-                ft.Container(height=8),
-                campo_email,
-                ft.Container(height=24),
-                ft.FilledButton(
-                    content=ft.Text("Recuperar Contraseña", size=16, weight="w600"),
-                    style=ft.ButtonStyle(color="white", bgcolor=COLOR_PRIMARIO, shape=ft.RoundedRectangleBorder(radius=12), padding=ft.Padding.symmetric(vertical=16, horizontal=24)),
-                    width=320,
-                    on_click=on_recuperar,
-                ),
-                ft.Container(height=20),
-                ft.TextButton(
-                    content=ft.Row(
-                        [ft.Icon(ft.Icons.ARROW_BACK, size=18, color=COLOR_PRIMARIO), ft.Text("← Volver al Login", size=14, color=COLOR_PRIMARIO)],
-                        spacing=8,
-                        alignment=ft.MainAxisAlignment.CENTER,
-                    ),
-                    on_click=lambda e: on_back_to_login(),
-                ),
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=0,
-        ),
+        content=columna_card,
         bgcolor=ft.Colors.with_opacity(0.85, COLOR_CARD),
         blur=ft.Blur(15, 15),
         padding=ft.Padding.all(40),
@@ -288,7 +401,7 @@ def build(page: ft.Page, on_back_to_login) -> ft.Control:
 
     footer = ft.Text("© 2026 Sistema de Brigadas Escolares - Municipio Maracaibo", size=12, color=COLOR_TEXTO_SEC, text_align=ft.TextAlign.CENTER)
 
-    btn_theme_toggle = create_auth_theme_toggle(page)
+    btn_theme_toggle = create_auth_theme_toggle(page, on_toggle=update_field_styles)
 
     return ft.Stack(
         [
