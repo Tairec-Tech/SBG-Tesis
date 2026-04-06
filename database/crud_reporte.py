@@ -4,6 +4,42 @@ Filtrado por tipo_brigada para aislamiento de datos.
 """
 from database.connection import ejecutar
 
+# ==============================================================
+# AUTO-MIGRACIÓN (se ejecuta una sola vez; idempotente)
+# ==============================================================
+
+def _migrar_reportes():
+    """Aplica migraciones necesarias para alinear las tablas con los escenarios SBE."""
+    migraciones = [
+        # --- reporte_de_impacto: nuevos campos ---
+        "ALTER TABLE `reporte_de_impacto` ADD COLUMN `brigada` VARCHAR(100) NULL AFTER `contenido`",
+        "ALTER TABLE `reporte_de_impacto` ADD COLUMN `area_evaluada` VARCHAR(200) NULL AFTER `brigada`",
+        "ALTER TABLE `reporte_de_impacto` ADD COLUMN `indicador` VARCHAR(100) NULL AFTER `area_evaluada`",
+        "ALTER TABLE `reporte_de_impacto` ADD COLUMN `valor` VARCHAR(50) NULL AFTER `indicador`",
+        "ALTER TABLE `reporte_de_impacto` ADD COLUMN `unidad` VARCHAR(50) NULL AFTER `valor`",
+        # --- reporte_de_impacto: Actividad opcional ---
+        "ALTER TABLE `reporte_de_impacto` MODIFY COLUMN `Actividad_idActividad` INT(11) NULL",
+        # --- reporte_de_impacto: contenido nullable ---
+        "ALTER TABLE `reporte_de_impacto` MODIFY COLUMN `contenido` TEXT NULL",
+        # --- reporte_actividad: campo participantes ---
+        "ALTER TABLE `reporte_actividad` ADD COLUMN `participantes` VARCHAR(500) NULL AFTER `resumen`",
+    ]
+    for sql in migraciones:
+        try:
+            ejecutar(sql, commit=True)
+        except Exception as e:
+            msg = str(e).lower()
+            if "duplicate column" in msg or "duplicate" in msg:
+                pass  # Ya existe, ignorar
+            else:
+                print(f"[migración reportes] {e}")
+
+_migrar_reportes()
+
+# ==============================================================
+# REPORTE DE INCIDENTES
+# ==============================================================
+
 def _asegurar_tabla_reporte():
     sql = """
     CREATE TABLE IF NOT EXISTS `reporte_incidente` (
@@ -126,7 +162,8 @@ def listar_reportes_actividad(tipo_brigada=None):
             r.fecha_reporte,
             a.titulo AS actividad_titulo, 
             a.fecha_inicio AS actividad_fecha,
-            u.nombre, u.apellido
+            u.nombre, u.apellido,
+            r.participantes
         FROM reporte_actividad r
         LEFT JOIN actividad a ON r.Actividad_idActividad = a.idActividad
         LEFT JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
@@ -144,7 +181,8 @@ def listar_reportes_actividad(tipo_brigada=None):
             r.fecha_reporte,
             a.titulo AS actividad_titulo, 
             a.fecha_inicio AS actividad_fecha,
-            u.nombre, u.apellido
+            u.nombre, u.apellido,
+            r.participantes
         FROM reporte_actividad r
         LEFT JOIN actividad a ON r.Actividad_idActividad = a.idActividad
         LEFT JOIN usuario u ON r.Usuario_idUsuario = u.idUsuario
@@ -160,17 +198,18 @@ def listar_reportes_actividad(tipo_brigada=None):
             "fecha_reporte": r[3],
             "actividad_titulo": r[4] or "Desconocida",
             "actividad_fecha": r[5],
-            "usuario_nombre": f"{r[6] or ''} {r[7] or ''}".strip() or "Sistema"
+            "usuario_nombre": f"{r[6] or ''} {r[7] or ''}".strip() or "Sistema",
+            "participantes": r[8] or "",
         })
     return reportes
 
-def crear_reporte_actividad(resumen: str, resultado: str, actividad_id: int, usuario_id: int) -> int | None:
+def crear_reporte_actividad(resumen: str, resultado: str, actividad_id: int, usuario_id: int, participantes: str = "") -> int | None:
     sql = """
-    INSERT INTO reporte_actividad (resumen, resultado, Actividad_idActividad, Usuario_idUsuario)
-    VALUES (%s, %s, %s, %s)
+    INSERT INTO reporte_actividad (resumen, participantes, resultado, Actividad_idActividad, Usuario_idUsuario)
+    VALUES (%s, %s, %s, %s, %s)
     """
     try:
-        lid = ejecutar(sql, (resumen, resultado, actividad_id, usuario_id), commit=True)
+        lid = ejecutar(sql, (resumen, participantes, resultado, actividad_id, usuario_id), commit=True)
         return lid
     except Exception as e:
         print(f"Error creando reporte actividad: {e}")
@@ -189,7 +228,12 @@ def listar_reportes_impacto(tipo_brigada=None):
             i.contenido, 
             i.fecha_generacion,
             a.titulo AS actividad_titulo,
-            u.nombre, u.apellido
+            u.nombre, u.apellido,
+            i.brigada,
+            i.area_evaluada,
+            i.indicador,
+            i.valor,
+            i.unidad
         FROM reporte_de_impacto i
         LEFT JOIN actividad a ON i.Actividad_idActividad = a.idActividad
         LEFT JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
@@ -205,7 +249,12 @@ def listar_reportes_impacto(tipo_brigada=None):
             i.contenido, 
             i.fecha_generacion,
             a.titulo AS actividad_titulo,
-            u.nombre, u.apellido
+            u.nombre, u.apellido,
+            i.brigada,
+            i.area_evaluada,
+            i.indicador,
+            i.valor,
+            i.unidad
         FROM reporte_de_impacto i
         LEFT JOIN actividad a ON i.Actividad_idActividad = a.idActividad
         LEFT JOIN usuario u ON i.Usuario_idUsuario = u.idUsuario
@@ -216,20 +265,44 @@ def listar_reportes_impacto(tipo_brigada=None):
     for r in rows:
         reportes.append({
             "id": r[0],
-            "contenido": r[1],
+            "contenido": r[1] or "",
             "fecha_generacion": r[2],
-            "actividad_titulo": r[3] or "Desconocida",
-            "usuario_nombre": f"{r[4] or ''} {r[5] or ''}".strip() or "Sistema"
+            "actividad_titulo": r[3] or "",
+            "usuario_nombre": f"{r[4] or ''} {r[5] or ''}".strip() or "Sistema",
+            "brigada": r[6] or "",
+            "area_evaluada": r[7] or "",
+            "indicador": r[8] or "",
+            "valor": r[9] or "",
+            "unidad": r[10] or "",
         })
     return reportes
 
-def crear_reporte_impacto(contenido: str, actividad_id: int, usuario_id: int) -> int | None:
+def crear_reporte_impacto(
+    usuario_id: int,
+    brigada: str = "",
+    area_evaluada: str = "",
+    indicador: str = "",
+    valor: str = "",
+    unidad: str = "",
+    contenido: str = "",
+    actividad_id: int | None = None,
+) -> int | None:
     sql = """
-    INSERT INTO reporte_de_impacto (contenido, Actividad_idActividad, Usuario_idUsuario)
-    VALUES (%s, %s, %s)
+    INSERT INTO reporte_de_impacto 
+        (contenido, brigada, area_evaluada, indicador, valor, unidad, Actividad_idActividad, Usuario_idUsuario)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """
     try:
-        lid = ejecutar(sql, (contenido, actividad_id, usuario_id), commit=True)
+        lid = ejecutar(sql, (
+            contenido or None,
+            brigada or None,
+            area_evaluada or None,
+            indicador or None,
+            valor or None,
+            unidad or None,
+            actividad_id,
+            usuario_id,
+        ), commit=True)
         return lid
     except Exception as e:
         print(f"Error creando reporte impacto: {e}")

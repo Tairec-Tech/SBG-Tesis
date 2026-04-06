@@ -4,7 +4,6 @@ import flet as ft
 from datetime import datetime
 from theme import (
     COLOR_PRIMARIO,
-    COLOR_PRIMARIO_CLARO,
     COLOR_TEXTO,
     COLOR_TEXTO_SEC,
     COLOR_CARD,
@@ -14,12 +13,10 @@ from theme import (
 )
 from components import titulo_pagina, boton_primario
 import database.crud_reporte as crud_reporte
-from database.crud_usuario import es_profesor
+from database.crud_usuario import es_profesor, es_admin
 
 
-def build(page: ft.Page, **kwargs) -> ft.Control:
-    
-    # Intentar obtener info del usuario actual
+def _obtener_usuario_actual(page: ft.Page) -> dict:
     usuario = {}
     try:
         if getattr(page, "data", None) and isinstance(page.data.get("usuario_actual"), dict):
@@ -30,28 +27,45 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
             usuario = json.loads(raw) if isinstance(raw, str) else (raw or {})
     except Exception:
         pass
-        
-    puede_crear_reporte = es_profesor(usuario.get("rol", ""))
+    return usuario or {}
 
-    def on_nuevo_report(_):
-        from forms import abrir_form_nuevo_reporte
-        abrir_form_nuevo_reporte(page)
+
+def _puede_crear_reportes(rol: str) -> bool:
+    return es_profesor(rol) or es_admin(rol)
+
+
+def _mostrar_snack(page: ft.Page, mensaje: str, color: str):
+    page.snack_bar = ft.SnackBar(ft.Text(mensaje, color="white"), bgcolor=color)
+    page.snack_bar.open = True
+    page.update()
+
+
+def build(page: ft.Page, **kwargs) -> ft.Control:
+    usuario = _obtener_usuario_actual(page)
+    puede_crear_reporte = _puede_crear_reportes(usuario.get("rol", ""))
 
     _tb = (page.data or {}).get("brigada_activa")
+    file_picker = ft.FilePicker()
+
+    def on_nuevo_report(_):
+        if not puede_crear_reporte:
+            _mostrar_snack(page, "No tiene permisos para crear reportes.", ft.Colors.RED)
+            return
+        from forms import abrir_form_nuevo_reporte
+        abrir_form_nuevo_reporte(page)
 
     def _refresh(_=None):
         stats = crud_reporte.get_reporte_stats(_tb)
         reportes = crud_reporte.listar_reportes(_tb)
         kpis_row.controls = _build_kpi_cards(stats)
-        reports_col.controls = _build_report_list(page, reportes)
+        reports_col.controls = _build_report_list(page, reportes, file_picker, _refresh)
         page.update()
 
-    # Carga inicial de datos
     stats = crud_reporte.get_reporte_stats(_tb)
     kpis_row = ft.Row(controls=_build_kpi_cards(stats), spacing=16)
 
     reportes = crud_reporte.listar_reportes(_tb)
-    reports_col = ft.Column(controls=_build_report_list(page, reportes), spacing=14)
+    reports_col = ft.Column(controls=_build_report_list(page, reportes, file_picker, _refresh), spacing=14)
 
     contenido = ft.Column(
         [
@@ -63,7 +77,6 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
             ft.Container(height=28),
             kpis_row,
             ft.Container(height=28),
-            # Encabezado de sección
             ft.Container(
                 content=ft.Row(
                     [
@@ -104,27 +117,22 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         expand=True,
         spacing=0,
     )
-    
-    # Añadimos key al contenedor principal para poder encontrarlo y recargarlo desde los forms
-    container = ft.Container(
+
+    return ft.Container(
         content=contenido,
         padding=24,
         bgcolor=COLOR_FONDO_VERDE,
         expand=True,
-        data="screen_reports"
+        data="screen_reports",
     )
-    return container
 
-
-# ═══════════════════════════════════════════════════════════
-#  KPI Cards — estilo glassmorphism con gradientes
-# ═══════════════════════════════════════════════════════════
 
 _KPI_GRADIENTS = [
-    (["#3b82f6", "#2563eb"], ft.Icons.FOLDER_OPEN_ROUNDED),       # Total
-    (["#f59e0b", "#d97706"], ft.Icons.SCHEDULE_ROUNDED),           # En Proceso
-    (["#10b981", "#059669"], ft.Icons.CHECK_CIRCLE_OUTLINED),      # Resueltos
+    (["#3b82f6", "#2563eb"], ft.Icons.FOLDER_OPEN_ROUNDED),
+    (["#f59e0b", "#d97706"], ft.Icons.SCHEDULE_ROUNDED),
+    (["#10b981", "#059669"], ft.Icons.CHECK_CIRCLE_OUTLINED),
 ]
+
 
 def _build_kpi_cards(stats: dict) -> list:
     data = [
@@ -143,11 +151,7 @@ def _build_kpi_cards(stats: dict) -> list:
                             width=52,
                             height=52,
                             border_radius=14,
-                            gradient=ft.LinearGradient(
-                                colors=colors,
-                                begin=ft.Alignment(-1, -1),
-                                end=ft.Alignment(1, 1),
-                            ),
+                            gradient=ft.LinearGradient(colors=colors, begin=ft.Alignment(-1, -1), end=ft.Alignment(1, 1)),
                             alignment=ft.Alignment(0, 0),
                             shadow=ft.BoxShadow(
                                 blur_radius=12,
@@ -178,10 +182,6 @@ def _build_kpi_cards(stats: dict) -> list:
     return cards
 
 
-# ═══════════════════════════════════════════════════════════
-#  Report Cards — diseño interactivo y exportación
-# ═══════════════════════════════════════════════════════════
-
 def _estado_chip(estado: str) -> ft.Container:
     colores = {
         "En Proceso": (ft.Colors.with_opacity(0.1, "#f59e0b"), "#d97706", ft.Icons.SCHEDULE),
@@ -205,24 +205,17 @@ def _estado_chip(estado: str) -> ft.Container:
 
 
 def _prioridad_indicator(prioridad: str) -> ft.Container:
-    """Retorna un puntito de color según la prioridad."""
     if "Alta" in prioridad:
         color = ft.Colors.RED_500
     elif "Media" in prioridad:
         color = ft.Colors.ORANGE_500
     else:
         color = ft.Colors.GREEN_500
-        
-    return ft.Container(
-        width=8,
-        height=8,
-        border_radius=4,
-        bgcolor=color,
-        tooltip=prioridad
-    )
+
+    return ft.Container(width=8, height=8, border_radius=4, bgcolor=color, tooltip=f"Severidad: {prioridad}")
 
 
-def _build_report_list(page: ft.Page, reportes: list) -> list:
+def _build_report_list(page: ft.Page, reportes: list, file_picker: ft.FilePicker, refresh_callback) -> list:
     if not reportes:
         return [
             ft.Container(
@@ -256,58 +249,50 @@ def _build_report_list(page: ft.Page, reportes: list) -> list:
             )
         ]
 
-    cards = []
-    
-    def on_exportar(e, req):
+    async def on_exportar(reporte):
+        default_name = f"Reporte_Incidente_{reporte.get('id', 'X')}.docx"
+        path = await file_picker.save_file(
+            dialog_title="Guardar reporte de incidente",
+            file_name=default_name,
+            file_type=ft.FilePickerFileType.CUSTOM,
+            allowed_extensions=["docx"],
+        )
+        if not path:
+            page.snack_bar = ft.SnackBar(ft.Text("Exportación cancelada.", color="white"), bgcolor=ft.Colors.ORANGE)
+            page.snack_bar.open = True
+            page.update()
+            return
         from util_docx import generar_reporte_docx
-        ruta = generar_reporte_docx(req)
+        ruta = generar_reporte_docx(reporte, save_path=path)
         if ruta:
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"DOCX generado en Descargas: {ruta}", color="white"), 
-                bgcolor=COLOR_PRIMARIO,
-                duration=4000
-            )
+            page.snack_bar = ft.SnackBar(ft.Text(f"DOCX guardado en: {ruta}", color="white"), bgcolor=COLOR_PRIMARIO)
         else:
-            page.snack_bar = ft.SnackBar(
-                ft.Text("Error generando DOCX. Verifique consola.", color="white"), 
-                bgcolor="red"
-            )
+            page.snack_bar = ft.SnackBar(ft.Text("Error generando el DOCX.", color="white"), bgcolor=ft.Colors.RED)
         page.snack_bar.open = True
-        page.update()
-    
-    def on_cambiar_estado(e, req, es_resolver):
-        nuevo_estado = "Resuelto" if es_resolver else "En Proceso"
-        exito = crud_reporte.actualizar_estado(req["id"], nuevo_estado)
-        
-        if exito:
-            page.snack_bar = ft.SnackBar(
-                ft.Text(f"Estado actualizado a {nuevo_estado}", color="white"), 
-                bgcolor=COLOR_PRIMARIO
-            )
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("Error actualizando", color="white"), bgcolor="red")
-            
-        page.snack_bar.open = True
-        # Pequeño truco para forzar actualización de la pantalla (ya que no tenemos Redux o Provider global aquí)
-        # La solución limpia es un simple mensaje de éxito y pedir que refresquen o recargar todos
         page.update()
 
+    def on_cambiar_estado(_, req, es_resolver):
+        nuevo_estado = "Resuelto" if es_resolver else "En Proceso"
+        exito = crud_reporte.actualizar_estado(req["id"], nuevo_estado)
+        if exito:
+            page.snack_bar = ft.SnackBar(ft.Text(f"Estado actualizado a {nuevo_estado}", color="white"), bgcolor=COLOR_PRIMARIO)
+            page.snack_bar.open = True
+            refresh_callback()
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Error actualizando", color="white"), bgcolor="red")
+            page.snack_bar.open = True
+            page.update()
+
+    cards = []
     for r in reportes:
         fecha_str = r["fecha"].strftime("%d %b %Y, %H:%M") if hasattr(r["fecha"], "strftime") else str(r["fecha"])
         es_resuelto = r["estado"] == "Resuelto"
-        
+
         card = ft.Container(
             content=ft.Row(
                 [
-                    # Barra de color brigada
-                    ft.Container(
-                        width=4,
-                        height=110,
-                        border_radius=4,
-                        bgcolor=r["color_brigada"],
-                    ),
+                    ft.Container(width=4, height=110, border_radius=4, bgcolor=r["color_brigada"]),
                     ft.Container(width=16),
-                    # Contenido principal
                     ft.Column(
                         [
                             ft.Row(
@@ -324,13 +309,7 @@ def _build_report_list(page: ft.Page, reportes: list) -> list:
                             ft.Container(height=4),
                             ft.Text(r["titulo"], size=16, weight="bold", color=COLOR_TEXTO),
                             ft.Container(height=4),
-                            ft.Text(
-                                r["descripcion"], 
-                                size=13, 
-                                color=COLOR_TEXTO_SEC, 
-                                max_lines=2, 
-                                overflow=ft.TextOverflow.ELLIPSIS
-                            ),
+                            ft.Text(r["descripcion"], size=13, color=COLOR_TEXTO_SEC, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
                             ft.Container(height=10),
                             ft.Row(
                                 [
@@ -348,13 +327,13 @@ def _build_report_list(page: ft.Page, reportes: list) -> list:
                         spacing=0,
                     ),
                     ft.Container(width=16),
-                    # Botones de Acción
                     ft.Column(
                         [
                             ft.IconButton(
                                 icon=ft.Icons.DOWNLOAD_ROUNDED,
                                 icon_color=COLOR_PRIMARIO,
-                                on_click=lambda e, rep=r: on_exportar(e, rep),
+                                tooltip="Guardar en Word",
+                                on_click=lambda e, rep=r: page.run_task(on_exportar, rep),
                             ),
                             ft.IconButton(
                                 icon=ft.Icons.CHECK_CIRCLE_OUTLINED if not es_resuelto else ft.Icons.RESTORE_ROUNDED,
@@ -376,5 +355,4 @@ def _build_report_list(page: ft.Page, reportes: list) -> list:
             shadow=get_sombra_card(),
         )
         cards.append(card)
-
     return cards

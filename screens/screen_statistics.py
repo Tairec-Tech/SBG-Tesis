@@ -1,6 +1,7 @@
 """
 Estadísticas — Gráficos con flet_charts (BarChart, LineChart, PieChart).
-Tonos verdes (brigadas ambientales). Fallback "En construcción" si flet_charts no está instalado.
+Configuración dinámica por tipo de brigada para coherencia semántica.
+Fallback "En construcción" si flet_charts no está instalado.
 """
 
 import flet as ft
@@ -25,6 +26,97 @@ except ImportError:
     fch = None
     HAS_CHARTS = False
 
+# ==============================================================
+# CONFIGURACIÓN SEMÁNTICA POR TIPO DE BRIGADA
+# ==============================================================
+
+_CONFIG_BRIGADA = {
+    "ecologica": {
+        "titulo": "Centro de Mando — Brigada Ecológica",
+        "subtitulo": "Monitoreo del avance e impacto ambiental",
+        "kpi_voluntarios": ("Voluntarios", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
+        "kpi_horas": ("Horas Ecológicas", ft.Icons.ECO_ROUNDED, ft.Colors.GREEN),
+        "kpi_despliegue": ("Despliegue", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
+        "kpi_impactos": ("Impactos Ambientales", ft.Icons.PUBLIC_ROUNDED, ft.Colors.PURPLE),
+        "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
+        "chart_barras_titulo": "📊 Jornadas Ecológicas por Mes",
+        "chart_barras_tooltip": "jornadas",
+        "chart_linea_titulo": "📈 Tendencia de Reportes Ambientales",
+        "chart_pie_titulo": "🍩 Estados de Jornadas Ecológicas",
+        "colores_barras": ["#10b981", "#059669", "#047857", "#065f46", "#064e3b", "#022c22"],
+        "color_linea": "#10b981",
+    },
+    "convivencia": {
+        "titulo": "Centro de Mando — Convivencia y Paz",
+        "subtitulo": "Seguimiento de mediaciones y convivencia escolar",
+        "kpi_voluntarios": ("Mediadores", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
+        "kpi_horas": ("Horas de Mediación", ft.Icons.HANDSHAKE_ROUNDED, ft.Colors.INDIGO),
+        "kpi_despliegue": ("Cobertura", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
+        "kpi_impactos": ("Casos Documentados", ft.Icons.DESCRIPTION_ROUNDED, ft.Colors.PURPLE),
+        "kpi_efectividad": ("Resolución", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
+        "chart_barras_titulo": "📊 Actividades de Mediación por Mes",
+        "chart_barras_tooltip": "mediaciones",
+        "chart_linea_titulo": "📈 Tendencia de Reportes de Convivencia",
+        "chart_pie_titulo": "🍩 Estados de Actividades de Convivencia",
+        "colores_barras": ["#6366f1", "#4f46e5", "#4338ca", "#3730a3", "#312e81", "#1e1b4b"],
+        "color_linea": "#6366f1",
+    },
+    "riesgo": {
+        "titulo": "Centro de Mando — Gestión de Riesgo",
+        "subtitulo": "Control operativo de prevención y respuesta ante riesgos",
+        "kpi_voluntarios": ("Operadores", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
+        "kpi_horas": ("Horas de Prevención", ft.Icons.HEALTH_AND_SAFETY_ROUNDED, ft.Colors.AMBER),
+        "kpi_despliegue": ("Despliegue", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
+        "kpi_impactos": ("Riesgos Evaluados", ft.Icons.WARNING_AMBER_ROUNDED, ft.Colors.RED),
+        "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
+        "chart_barras_titulo": "📊 Simulacros y Operativos por Mes",
+        "chart_barras_tooltip": "operativos",
+        "chart_linea_titulo": "📈 Tendencia de Reportes de Riesgo",
+        "chart_pie_titulo": "🍩 Estados de Operativos",
+        "colores_barras": ["#f59e0b", "#d97706", "#b45309", "#92400e", "#78350f", "#451a03"],
+        "color_linea": "#f59e0b",
+    },
+    "patrulla": {
+        "titulo": "Centro de Mando — Patrulla Escolar",
+        "subtitulo": "Supervisión de seguridad vial y vigilancia escolar",
+        "kpi_voluntarios": ("Patrulleros", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
+        "kpi_horas": ("Horas de Vigilancia", ft.Icons.SHIELD_ROUNDED, ft.Colors.CYAN),
+        "kpi_despliegue": ("Cobertura", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
+        "kpi_impactos": ("Incidencias Reportadas", ft.Icons.REPORT_ROUNDED, ft.Colors.RED),
+        "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
+        "chart_barras_titulo": "📊 Turnos de Vigilancia por Mes",
+        "chart_barras_tooltip": "turnos",
+        "chart_linea_titulo": "📈 Tendencia de Reportes de Patrulla",
+        "chart_pie_titulo": "🍩 Estados de Operaciones de Patrulla",
+        "colores_barras": ["#06b6d4", "#0891b2", "#0e7490", "#155e75", "#164e63", "#083344"],
+        "color_linea": "#06b6d4",
+    },
+}
+
+# Configuración por defecto (vista global, sin brigada activa)
+_CONFIG_DEFAULT = {
+    "titulo": "Centro de Mando Estadístico",
+    "subtitulo": "Monitoreo global del avance e impacto de todas las brigadas",
+    "kpi_voluntarios": ("Brigadistas", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
+    "kpi_horas": ("Horas Registradas", ft.Icons.HOURGLASS_BOTTOM_ROUNDED, ft.Colors.GREEN),
+    "kpi_despliegue": ("Despliegue", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
+    "kpi_impactos": ("Impactos", ft.Icons.PUBLIC_ROUNDED, ft.Colors.PURPLE),
+    "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
+    "chart_barras_titulo": "📊 Actividades por Mes",
+    "chart_barras_tooltip": "actividades",
+    "chart_linea_titulo": "📈 Tendencia de Reportes",
+    "chart_pie_titulo": "🍩 Distribución de Estados de Actividades",
+    "colores_barras": ["#10b981", "#059669", "#047857", "#065f46", "#064e3b", "#022c22"],
+    "color_linea": "#10b981",
+}
+
+
+def _get_config(tipo_brigada: str | None) -> dict:
+    """Devuelve la configuración semántica para el tipo de brigada activo."""
+    if tipo_brigada and tipo_brigada in _CONFIG_BRIGADA:
+        return _CONFIG_BRIGADA[tipo_brigada]
+    return _CONFIG_DEFAULT
+
 
 def _tarjeta_grafico(titulo: str, grafico: ft.Control, altura: float = 320) -> ft.Container:
     return card_principal(
@@ -41,47 +133,46 @@ def _tarjeta_grafico(titulo: str, grafico: ft.Control, altura: float = 320) -> f
 
 
 def _build_con_graficos(page: ft.Page) -> ft.Control:
-    """Construye la vista de estadísticas con BarChart, LineChart y PieChart con DATOS REALES."""
-    # Obtener datos matemáticos (filtrados por tipo de brigada activa)
+    """Construye la vista de estadísticas con datos reales y configuración por brigada."""
+    # Obtener tipo de brigada activa y su configuración
     _tb = (page.data or {}).get("brigada_activa")
+    cfg = _get_config(_tb)
+
+    # Datos reales (filtrados por tipo de brigada)
     kpis = crud_est.get_kpis_estadisticas(_tb)
     act_por_mes = crud_est.get_actividades_por_mes(_tb)
     reportes_tendencia = crud_est.get_tendencia_reportes_por_mes(_tb)
     estados = crud_est.get_distribucion_estados_actividades(_tb)
 
-    # Colores base
-    verde_1 = COLOR_PRIMARIO_OSCURO
-    verde_2 = COLOR_PRIMARIO
-    verde_3 = COLOR_PRIMARIO_CLARO
-    verde_4 = COLOR_VERDE_SUAVE
+    # --- Fila de KPIs (semántica dinámica por brigada) ---
+    lbl_vol, ico_vol, clr_vol = cfg["kpi_voluntarios"]
+    lbl_hrs, ico_hrs, clr_hrs = cfg["kpi_horas"]
+    lbl_dep, ico_dep, clr_dep = cfg["kpi_despliegue"]
+    lbl_imp, ico_imp, clr_imp = cfg["kpi_impactos"]
+    lbl_efe, ico_efe, clr_efe = cfg["kpi_efectividad"]
 
-    # --- Nueva Fila de KPIs (Métricas Globales de Alto Impacto) ---
     fila_kpis = ft.Row(
         [
-            ft.Container(card_kpi("Voluntarios", kpis.get("voluntariado_activo", 0), ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE), expand=True),
-            ft.Container(card_kpi("Horas Ecológicas", kpis.get("horas_invertidas", 0), ft.Icons.HOURGLASS_BOTTOM_ROUNDED, ft.Colors.GREEN), expand=True),
-            ft.Container(card_kpi("Despliegue", f"{kpis.get('despliegue_operativo', 0)}%", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE), expand=True),
-            ft.Container(card_kpi("Impactos", kpis.get("impacto_documentado", 0), ft.Icons.PUBLIC_ROUNDED, ft.Colors.PURPLE), expand=True),
-            ft.Container(card_kpi("Efectividad", f"{kpis.get('tasa_efectividad', 0)}%", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL), expand=True),
+            ft.Container(card_kpi(lbl_vol, kpis.get("voluntariado_activo", 0), ico_vol, clr_vol), expand=True),
+            ft.Container(card_kpi(lbl_hrs, kpis.get("horas_invertidas", 0), ico_hrs, clr_hrs), expand=True),
+            ft.Container(card_kpi(lbl_dep, f"{kpis.get('despliegue_operativo', 0)}%", ico_dep, clr_dep), expand=True),
+            ft.Container(card_kpi(lbl_imp, kpis.get("impacto_documentado", 0), ico_imp, clr_imp), expand=True),
+            ft.Container(card_kpi(lbl_efe, f"{kpis.get('tasa_efectividad', 0)}%", ico_efe, clr_efe), expand=True),
         ],
         spacing=16,
         alignment=ft.MainAxisAlignment.START,
     )
 
-    # --- BarChart mejorado: Actividades por mes ---
+    # --- BarChart: Actividades por mes ---
     bar_groups = []
     bar_labels = []
-    import calendar
-    
-    # Nombres de meses en español
+
     meses_es = {1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
                 7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"}
-    
-    # Gradiente visual de barras (de claro a oscuro según actividad)
-    colores_barras = [
-        "#10b981", "#059669", "#047857", "#065f46", "#064e3b", "#022c22"
-    ]
-    
+
+    colores_barras = cfg["colores_barras"]
+    tooltip_barras = cfg["chart_barras_tooltip"]
+
     if not act_por_mes:
         bar_labels.append(fch.ChartAxisLabel(value=0, label=ft.Container(ft.Text("Sin datos", size=11, color=COLOR_TEXTO_SEC), padding=8)))
         bar_groups.append(fch.BarChartGroup(x=0, rods=[fch.BarChartRod(from_y=0, to_y=0, width=36, color=COLOR_BORDE, border_radius=8)]))
@@ -94,17 +185,17 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
                 nombre_mes = meses_es.get(mes_num, mes_str)
             except:
                 nombre_mes = mes_str
-            
+
             bar_labels.append(fch.ChartAxisLabel(
-                value=index, 
+                value=index,
                 label=ft.Container(ft.Text(nombre_mes, size=12, weight="w500", color=COLOR_TEXTO_SEC), padding=ft.padding.only(top=8))
             ))
             color_barra = colores_barras[index % len(colores_barras)]
             bar_groups.append(fch.BarChartGroup(
-                x=index, 
+                x=index,
                 rods=[fch.BarChartRod(
                     from_y=0, to_y=cantidad, width=36, color=color_barra, border_radius=8,
-                    tooltip=f"{nombre_mes}: {cantidad} actividades",
+                    tooltip=f"{nombre_mes}: {cantidad} {tooltip_barras}",
                 )],
             ))
 
@@ -116,12 +207,12 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
         max_y=max_actividades + max(5, int(max_actividades * 0.25)),
         border=ft.Border.all(1, COLOR_BORDE),
         horizontal_grid_lines=fch.ChartGridLines(color=ft.Colors.with_opacity(0.1, "grey"), width=1, dash_pattern=[4, 4]),
-        left_axis=fch.ChartAxis(label_size=40, title=ft.Text("Actividades", size=12, color=COLOR_TEXTO_SEC, weight="w500"), title_size=42),
+        left_axis=fch.ChartAxis(label_size=40, title=ft.Text(tooltip_barras.capitalize(), size=12, color=COLOR_TEXTO_SEC, weight="w500"), title_size=42),
         bottom_axis=fch.ChartAxis(label_size=48, labels=bar_labels),
         groups=bar_groups,
     )
 
-    # --- LineChart mejorado: Tendencia de reportes ---
+    # --- LineChart: Tendencia de reportes ---
     puntos_linea = []
     line_labels = []
     if not reportes_tendencia:
@@ -137,25 +228,25 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
                 nombre_mes = meses_es.get(mes_num, mes_str)
             except:
                 nombre_mes = mes_str
-                
+
             puntos_linea.append(fch.LineChartDataPoint(
                 idx, val,
                 tooltip=f"{nombre_mes}: {val} reportes",
             ))
             line_labels.append(fch.ChartAxisLabel(
-                value=idx, 
+                value=idx,
                 label=ft.Container(ft.Text(nombre_mes, size=12, weight="w500", color=COLOR_TEXTO_SEC), padding=ft.padding.only(top=6))
             ))
-            
+
     max_reportes = max([item[1] for item in reportes_tendencia]) if reportes_tendencia else 10
-    
+
     chart_linea = fch.LineChart(
         expand=True,
         data_series=[
             fch.LineChartData(
-                stroke_width=4, 
-                color="#10b981",
-                curved=True, 
+                stroke_width=4,
+                color=cfg["color_linea"],
+                curved=True,
                 rounded_stroke_cap=True,
                 points=puntos_linea,
             ),
@@ -170,20 +261,20 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
         bottom_axis=fch.ChartAxis(label_size=48, labels=line_labels),
     )
 
-    # --- PieChart mejorado: Distribución de estados con leyenda ---
+    # --- PieChart: Distribución de estados ---
     pie_sections = []
     leyenda_items = []
-    
+
     colores_estados = {
-        "Completada": "#10b981",   # Verde esmeralda
-        "Pendiente": "#3b82f6",    # Azul 
-        "En progreso": "#f59e0b",  # Ámbar
-        "Cancelada": "#ef4444",    # Rojo
+        "Completada": "#10b981",
+        "Pendiente": "#3b82f6",
+        "En progreso": "#f59e0b",
+        "Cancelada": "#ef4444",
     }
-    
+
     if not estados:
         pie_sections.append(
-            fch.PieChartSection(value=100, title="Sin Datos", color=COLOR_BORDE, radius=80, 
+            fch.PieChartSection(value=100, title="Sin Datos", color=COLOR_BORDE, radius=80,
                                title_style=ft.TextStyle(size=13, color=COLOR_TEXTO_SEC, weight="bold"))
         )
     else:
@@ -193,18 +284,17 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
             conteo = est["conteo"]
             color_est = colores_estados.get(nombre, "#94a3b8")
             porcentaje = (conteo / total_actividades) * 100 if total_actividades > 0 else 0
-            
+
             titulo_seccion = f"{int(porcentaje)}%" if porcentaje > 8 else ""
             pie_sections.append(
                 fch.PieChartSection(
-                    value=conteo, 
-                    title=titulo_seccion, 
-                    color=color_est, 
-                    radius=80, 
+                    value=conteo,
+                    title=titulo_seccion,
+                    color=color_est,
+                    radius=80,
                     title_style=ft.TextStyle(size=13, color=ft.Colors.WHITE, weight="bold"),
                 )
             )
-            # Construir item de leyenda visual
             leyenda_items.append(
                 ft.Row([
                     ft.Container(width=14, height=14, bgcolor=color_est, border_radius=4),
@@ -222,8 +312,7 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
         center_space_color=ft.Colors.SURFACE,
         sections=pie_sections,
     )
-    
-    # Contenedor de la Dona con su leyenda al lado
+
     contenido_pie = ft.Row(
         [
             ft.Container(content=chart_pie, expand=True, height=280),
@@ -237,21 +326,20 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # --- Layout de las tarjetas de gráficos ---
+    # --- Layout ---
     fila_1 = ft.Row(
         [
-            ft.Container(content=_tarjeta_grafico("📊 Actividades por Mes", chart_barras), expand=True),
+            ft.Container(content=_tarjeta_grafico(cfg["chart_barras_titulo"], chart_barras), expand=True),
             ft.Container(width=20),
-            ft.Container(content=_tarjeta_grafico("📈 Tendencia de Reportes", chart_linea), expand=True),
+            ft.Container(content=_tarjeta_grafico(cfg["chart_linea_titulo"], chart_linea), expand=True),
         ],
         spacing=0,
     )
-    
-    # El PieChart usa un layout especial con leyenda integrada
+
     tarjeta_pie = card_principal(
         ft.Column(
             [
-                ft.Text("🍩 Distribución de Estados de Actividades", size=18, weight="bold", color=COLOR_TEXTO),
+                ft.Text(cfg["chart_pie_titulo"], size=18, weight="bold", color=COLOR_TEXTO),
                 ft.Container(height=16),
                 contenido_pie,
             ],
@@ -263,8 +351,8 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
     return ft.Column(
         [
             titulo_pagina(
-                "Centro de Mando Estadístico",
-                "Monitoreo global del avance e impacto de las brigadas",
+                cfg["titulo"],
+                cfg["subtitulo"],
             ),
             ft.Container(height=16),
             fila_kpis,

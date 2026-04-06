@@ -1987,14 +1987,14 @@ def abrir_form_nuevo_reporte(page: ft.Page):
         content_padding=_CAMPO_PADDING,
     )
     ubicacion = ft.TextField(hint_text="Lugar donde ocurrió el incidente", **_CAMPO_BASE)
-    prioridad = ft.Dropdown(
-        hint_text="Seleccione prioridad",
+    severidad = ft.Dropdown(
+        hint_text="Seleccione severidad",
         hint_style=ft.TextStyle(size=14, color=COLOR_TEXTO_SEC),
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=[
-            ft.dropdown.Option("Baja - Situación menor"),
+            ft.dropdown.Option("Baja"),
             ft.dropdown.Option("Media"),
-            ft.dropdown.Option("Alta - Requiere atención inmediata"),
+            ft.dropdown.Option("Alta"),
         ],
         border_color=COLOR_BORDE,
         focused_border_color=COLOR_PRIMARIO,
@@ -2009,13 +2009,13 @@ def abrir_form_nuevo_reporte(page: ft.Page):
             _campo_con_titulo("Descripción Detallada", desc),
             _campo_con_titulo("Brigada Involucrada", brigada),
             _campo_con_titulo("Ubicación", ubicacion),
-            _campo_con_titulo("Nivel de Prioridad", prioridad, espaciado_abajo=0),
+            _campo_con_titulo("Severidad", severidad, espaciado_abajo=0),
         ],
         spacing=0,
     )
 
     def on_crear(_):
-        if not all([titulo_inc.value, desc.value, brigada.value, ubicacion.value, prioridad.value]):
+        if not all([titulo_inc.value, desc.value, brigada.value, ubicacion.value, severidad.value]):
             page.snack_bar = ft.SnackBar(ft.Text("Por favor complete todos los campos", color=COLOR_TEXTO), bgcolor=COLOR_CARD)
             page.snack_bar.open = True
             page.update()
@@ -2025,20 +2025,13 @@ def abrir_form_nuevo_reporte(page: ft.Page):
             titulo=titulo_inc.value, 
             descripcion=desc.value, 
             ubicacion=ubicacion.value, 
-            prioridad=prioridad.value, 
+            prioridad=severidad.value, 
             brigada_id=int(brigada.value)
         )
         
         page.pop_dialog()
         page.snack_bar = ft.SnackBar(ft.Text("Reporte creado con éxito", color="white"), bgcolor=COLOR_PRIMARIO)
         page.snack_bar.open = True
-        
-        # Intentar refrescar la pantalla de reportes si estamos ahí
-        for control in page.controls:
-            if hasattr(control, "data") and control.data == "screen_reports":
-                # La pantalla principal debe pasarse esta función en caso de recarga
-                pass # Por simplicidad recargamos mediante callback o el usuario puede darle refresh
-        
         page.update()
 
     dialogo = ft.AlertDialog(
@@ -2070,7 +2063,7 @@ def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_succ
     opciones_actividades = [ft.dropdown.Option(str(a["id"]), a["titulo"]) for a in actividades]
     
     actividad_dd = ft.Dropdown(
-        hint_text="Múltiples opciones disponibles",
+        hint_text="Seleccione la actividad",
         hint_style=ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO)),
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=opciones_actividades,
@@ -2080,12 +2073,16 @@ def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_succ
         color=COLOR_TEXTO,
         content_padding=_CAMPO_PADDING,
     )
-    resumen = _campo_texto("Resumen de la Jornada", "Ej. Se recolectaron 50 bolsas de basura.", multiline=True)
-    resumen.min_lines = 3
-    resumen.max_lines = 5
-    resumen.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
+    participantes_tf = ft.TextField(
+        hint_text="Ej. 25 estudiantes, 2 profesores",
+        **_CAMPO_BASE,
+    )
+    observaciones = _campo_texto("Observaciones", "Resumen de lo ocurrido durante la actividad...", multiline=True)
+    observaciones.min_lines = 3
+    observaciones.max_lines = 5
+    observaciones.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
     
-    resultado = _campo_texto("Resultado Oficial", "Ej. Completado con éxito", multiline=True)
+    resultado = _campo_texto("Estado Final", "Ej. Completado con éxito", multiline=True)
     resultado.min_lines = 2
     resultado.max_lines = 3
     resultado.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
@@ -2093,25 +2090,26 @@ def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_succ
     contenido = ft.Column(
         [
             _campo_con_titulo("Actividad Realizada", actividad_dd),
-            _campo_con_titulo("Reporte Narrativo", resumen),
+            _campo_con_titulo("Participantes", participantes_tf),
+            _campo_con_titulo("Observaciones", observaciones),
             _campo_con_titulo("Estado Final (Resultado)", resultado, espaciado_abajo=0),
         ],
         spacing=0,
     )
 
     def on_crear(e):
-        if not actividad_dd.value or not resumen.value or not resultado.value:
-            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Todos los campos son obligatorios."), bgcolor=ft.Colors.RED))
+        if not actividad_dd.value or not observaciones.value or not resultado.value:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Actividad, observaciones y estado final son obligatorios."), bgcolor=ft.Colors.RED))
             setattr(page.snack_bar, 'open', True)
             page.update()
             return
             
-        print(f"DEBUG: Intentando crear reporte de actividad. Act: {actividad_dd.value}, Usu: {id_usuario_actual}")
         lid = crud_reporte.crear_reporte_actividad(
-            resumen=resumen.value,
+            resumen=observaciones.value,
             resultado=resultado.value,
             actividad_id=int(actividad_dd.value),
-            usuario_id=id_usuario_actual
+            usuario_id=id_usuario_actual,
+            participantes=(participantes_tf.value or "").strip(),
         )
         
         if lid:
@@ -2129,7 +2127,8 @@ def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_succ
         bgcolor=COLOR_CARD,
         title=ft.Text("Nuevo Reporte de Actividad", size=18, weight="w600", color=COLOR_TEXTO),
         content=ft.Container(
-            content=contenido, width=ANCHO_FORM, height=420, bgcolor=COLOR_CARD
+            content=ft.Column([contenido], scroll=ft.ScrollMode.AUTO, tight=True),
+            width=ANCHO_FORM, height=ALTURA_MAX_FORM, bgcolor=COLOR_CARD,
         ),
         actions=[
             ft.TextButton("Cancelar", on_click=lambda e: _cerrar_dialogo(page), style=ft.ButtonStyle(color=COLOR_TEXTO)),
@@ -2141,11 +2140,50 @@ def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_succ
 def modal_nuevo_reporte_impacto(page: ft.Page, id_usuario_actual: int, on_success_callback=None):
     from database import crud_actividad, crud_reporte
     
+    # Brigadas reales
+    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"))
+    opciones_brigadas = [ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]) for bg in brigadas_bd]
+
+    brigada_dd = ft.Dropdown(
+        hint_text="Seleccione la brigada",
+        hint_style=ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO)),
+        text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
+        options=opciones_brigadas,
+        border_color=COLOR_BORDE,
+        focused_border_color=COLOR_PRIMARIO,
+        border_radius=RADIO,
+        color=COLOR_TEXTO,
+        content_padding=_CAMPO_PADDING,
+    )
+    area_evaluada_tf = ft.TextField(
+        hint_text="Ej. Patio central, Zona de recreo",
+        **_CAMPO_BASE,
+    )
+    indicador_tf = ft.TextField(
+        hint_text="Ej. Residuos recolectados, Horas de vigilancia",
+        **_CAMPO_BASE,
+    )
+    # Valor y Unidad en fila
+    valor_tf = ft.TextField(
+        hint_text="Ej. 120",
+        **_CAMPO_BASE,
+    )
+    unidad_tf = ft.TextField(
+        hint_text="Ej. kg, horas, unidades",
+        **_CAMPO_BASE,
+    )
+    descripcion_impacto = _campo_texto("Descripción", "Análisis del impacto observado...", multiline=True)
+    descripcion_impacto.min_lines = 3
+    descripcion_impacto.max_lines = 6
+    descripcion_impacto.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
+
+    # Actividad asociada (opcional)
     actividades = crud_actividad.listar_actividades()
-    opciones_actividades = [ft.dropdown.Option(str(a["id"]), a["titulo"]) for a in actividades]
-    
+    opciones_actividades = [ft.dropdown.Option("", "— Ninguna —")] + [
+        ft.dropdown.Option(str(a["id"]), a["titulo"]) for a in actividades
+    ]
     actividad_dd = ft.Dropdown(
-        hint_text="Seleccione la actividad analizada",
+        hint_text="Opcional",
         hint_style=ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO)),
         text_style=ft.TextStyle(size=14, color=COLOR_TEXTO),
         options=opciones_actividades,
@@ -2155,39 +2193,73 @@ def modal_nuevo_reporte_impacto(page: ft.Page, id_usuario_actual: int, on_succes
         color=COLOR_TEXTO,
         content_padding=_CAMPO_PADDING,
     )
-    contenido_txt = _campo_texto("Análisis de Impacto", "Escriba la evaluación ambiental profunda aquí...", multiline=True)
-    # Hacerlo más grande y oscurecer el placeholder
-    contenido_txt.min_lines = 5
-    contenido_txt.max_lines = 8
-    contenido_txt.hint_style = ft.TextStyle(size=14, color=ft.Colors.with_opacity(0.7, COLOR_TEXTO))
-    
+
+    fila_valor_unidad = ft.Row(
+        [
+            ft.Column(
+                [ft.Text("Valor", size=14, weight="w500", color=COLOR_TEXTO), ft.Container(height=8), valor_tf],
+                spacing=0, expand=True,
+            ),
+            ft.Container(width=16),
+            ft.Column(
+                [ft.Text("Unidad", size=14, weight="w500", color=COLOR_TEXTO), ft.Container(height=8), unidad_tf],
+                spacing=0, expand=True,
+            ),
+        ],
+        spacing=0,
+    )
+
     contenido_modal = ft.Column(
         [
-            _campo_con_titulo("Actividad a la que pertenece este análisis", actividad_dd),
-            _campo_con_titulo("Contenido Medioambiental", contenido_txt, espaciado_abajo=0),
+            _campo_con_titulo("Brigada", brigada_dd),
+            _campo_con_titulo("Área Evaluada", area_evaluada_tf),
+            _campo_con_titulo("Indicador", indicador_tf),
+            fila_valor_unidad,
+            ft.Container(height=16),
+            _campo_con_titulo("Descripción del Impacto", descripcion_impacto),
+            _campo_con_titulo("Actividad Asociada (opcional)", actividad_dd, espaciado_abajo=0),
         ],
         spacing=0,
     )
 
     def on_crear(e):
-        if not actividad_dd.value or not contenido_txt.value:
-            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("El análisis y la actividad no pueden estar vacíos."), bgcolor=ft.Colors.RED))
+        if not brigada_dd.value or not area_evaluada_tf.value or not indicador_tf.value:
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Brigada, área evaluada e indicador son obligatorios."), bgcolor=ft.Colors.RED))
             setattr(page.snack_bar, 'open', True)
             page.update()
             return
 
+        # Resolver nombre de brigada a texto
+        brigada_nombre = ""
+        for bg in brigadas_bd:
+            if str(bg["idBrigada"]) == brigada_dd.value:
+                brigada_nombre = bg["nombre_brigada"]
+                break
+
+        act_id = None
+        if actividad_dd.value and actividad_dd.value.strip():
+            try:
+                act_id = int(actividad_dd.value)
+            except ValueError:
+                act_id = None
+
         lid = crud_reporte.crear_reporte_impacto(
-            contenido=contenido_txt.value,
-            actividad_id=int(actividad_dd.value),
-            usuario_id=id_usuario_actual
+            usuario_id=id_usuario_actual,
+            brigada=brigada_nombre,
+            area_evaluada=(area_evaluada_tf.value or "").strip(),
+            indicador=(indicador_tf.value or "").strip(),
+            valor=(valor_tf.value or "").strip(),
+            unidad=(unidad_tf.value or "").strip(),
+            contenido=(descripcion_impacto.value or "").strip(),
+            actividad_id=act_id,
         )
         
         if lid:
-            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Análisis de impacto guardado correctamente."), bgcolor=ft.Colors.GREEN))
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Reporte de impacto guardado correctamente."), bgcolor=ft.Colors.GREEN))
             _cerrar_dialogo(page)
             if on_success_callback: on_success_callback()
         else:
-            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Error en BD al guardar el análisis."), bgcolor=ft.Colors.RED))
+            setattr(page, 'snack_bar', ft.SnackBar(ft.Text("Error en BD al guardar el reporte."), bgcolor=ft.Colors.RED))
         
         setattr(page.snack_bar, 'open', True)
         page.update()
@@ -2195,13 +2267,14 @@ def modal_nuevo_reporte_impacto(page: ft.Page, id_usuario_actual: int, on_succes
     dialogo = ft.AlertDialog(
         modal=True,
         bgcolor=COLOR_CARD,
-        title=ft.Text("Nuevo Análisis de Impacto", size=18, weight="w600", color=COLOR_TEXTO),
+        title=ft.Text("Nuevo Reporte de Impacto", size=18, weight="w600", color=COLOR_TEXTO),
         content=ft.Container(
-            content=contenido_modal, width=ANCHO_FORM, height=420, bgcolor=COLOR_CARD
+            content=ft.Column([contenido_modal], scroll=ft.ScrollMode.AUTO, tight=True),
+            width=ANCHO_FORM, height=ALTURA_MAX_FORM, bgcolor=COLOR_CARD,
         ),
         actions=[
             ft.TextButton("Cancelar", on_click=lambda e: _cerrar_dialogo(page), style=ft.ButtonStyle(color=COLOR_TEXTO)),
-            ft.FilledButton("Guardar Análisis", on_click=on_crear, style=ft.ButtonStyle(bgcolor=COLOR_PRIMARIO, color="white")),
+            ft.FilledButton("Guardar Reporte", on_click=on_crear, style=ft.ButtonStyle(bgcolor=COLOR_PRIMARIO, color="white")),
         ],
     )
     page.show_dialog(dialogo)
