@@ -15,10 +15,8 @@ import flet as ft
 from util_log import log
 
 log("--- App SBE iniciando ---")
-if sys.stdout:
-    sys.stdout.flush()
-if sys.stderr:
-    sys.stderr.flush()
+sys.stdout.flush()
+sys.stderr.flush()
 
 from theme import (
     TEMA_CLARO,
@@ -37,13 +35,8 @@ from screens import screen_dashboard, screen_brigade_select
 from components import build_sidebar
 
 TRANSITION_TEXT = "#FFFFFF"
-if getattr(sys, 'frozen', False):
-    # Si la app está empaquetada como .exe, buscar junto al ejecutable
-    EXE_DIR = os.path.dirname(sys.executable)
-else:
-    EXE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-LOGOS_DIR = os.path.join(EXE_DIR, "uploads", "logos")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGOS_DIR = os.path.join(BASE_DIR, "uploads", "logos")
 
 ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 
@@ -51,7 +44,7 @@ ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 async def main(page: ft.Page):
     log("Ventana principal abierta")
     page.title = "Sistema de Brigadas Escolares"
-    page.window.icon = "SBE.ico"
+    page.window.icon = os.path.join(LOGOS_DIR, "SBE.ico")
     # Iniciar con paleta neutra para la intro y login
     aplicar_paleta_neutra(page)
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -353,4 +346,4 @@ async def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.run(main, assets_dir="assets")
+    ft.run(main)

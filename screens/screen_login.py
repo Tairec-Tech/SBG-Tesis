@@ -335,7 +335,7 @@ def build(page: ft.Page, on_login_success, on_go_register, on_go_recovery) -> ft
     header = ft.Column(
         [
             ft.Container(
-                content=ft.Image(src="SBE.png", width=180, height=180, fit="contain"),
+                content=ft.Image(src="uploads/logos/SBE.png", width=180, height=180, fit="contain"),
                 width=190,
                 height=190,
                 alignment=ft.Alignment.CENTER,

@@ -26,8 +26,6 @@ def _get_pool():
                 password=DB_PASSWORD,
                 database=DB_NAME,
                 charset="utf8mb4",
-                ssl_ca="",  # Requerido para Aiven Cloud
-                use_pure=True  # Previene errores de extensión C en empaquetado
             )
         except Error as e:
             raise RuntimeError(f"Error al crear pool de conexiones: {e}") from e
