@@ -8,9 +8,16 @@ Errores típicos si el login "no hace nada" o falla:
 - "Can't connect to MySQL server" → Servidor MySQL (XAMPP) no está iniciado.
 """
 import os
+import sys
 
 from dotenv import load_dotenv
-load_dotenv()
+
+if getattr(sys, 'frozen', False):
+    # Si es .exe, el .env debe estar al lado del .exe compilado
+    env_path = os.path.join(os.path.dirname(sys.executable), '.env')
+    load_dotenv(env_path)
+else:
+    load_dotenv()
 
 DB_HOST = os.environ.get("SBE_DB_HOST", "localhost")
 DB_PORT = int(os.environ.get("SBE_DB_PORT", "3306"))
