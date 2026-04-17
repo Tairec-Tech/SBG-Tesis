@@ -8,7 +8,11 @@ from database.connection import ejecutar
 # AUTO-MIGRACIÓN (se ejecuta una sola vez; idempotente)
 # ==============================================================
 
-def _migrar_reportes():
+def ejecutar_migracion_reportes():
+    """
+    Ejecuta las migraciones necesarias para el módulo de reportes.
+    Esta función NO se ejecuta automáticamente. Debe invocarse manual o explícitamente.
+    """
     """Aplica migraciones necesarias para alinear las tablas con los escenarios SBE."""
     migraciones = [
         # --- reporte_de_impacto: nuevos campos ---
@@ -34,13 +38,18 @@ def _migrar_reportes():
             else:
                 print(f"[migración reportes] {e}")
 
-_migrar_reportes()
+# ejecutar_migracion_reportes()  # Desactivado para evitar ejecucion global en produccion
 
 # ==============================================================
 # REPORTE DE INCIDENTES
 # ==============================================================
 
+_TABLA_REPORTE_VERIFICADA = False
+
 def _asegurar_tabla_reporte():
+    global _TABLA_REPORTE_VERIFICADA
+    if _TABLA_REPORTE_VERIFICADA:
+        return
     sql = """
     CREATE TABLE IF NOT EXISTS `reporte_incidente` (
       `idReporte` INT(11) NOT NULL AUTO_INCREMENT,
@@ -60,6 +69,7 @@ def _asegurar_tabla_reporte():
     """
     try:
         ejecutar(sql, commit=True)
+        _TABLA_REPORTE_VERIFICADA = True
     except Exception as e:
         print(f"[reporte] tabla ya existe o error: {e}")
 

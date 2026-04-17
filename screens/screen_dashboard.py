@@ -1,6 +1,8 @@
 """Panel Principal — Dashboard con KPIs y gráficas."""
 
 import flet as ft
+import asyncio
+
 try:
     import flet_charts as fch
     HAS_CHARTS = True
@@ -26,22 +28,31 @@ import database.crud_actividad as crud_act
 
 
 def build(page: ft.Page, **kwargs) -> ft.Control:
-    # 1. Obtener datos (filtrados por tipo de brigada activa)
+    # 1. Parámetro de brigada activa
     _tb = (page.data or {}).get("brigada_activa")
-    stats = crud_dash.get_kpi_stats(_tb)
-    actividades = crud_act.obtener_actividades_recientes(5, tipo_brigada=_tb)
+    
+    cache_key_stats = f"_cache_kpi_{_tb}"
+    cache_key_acts  = f"_cache_acts_{_tb}"
+    loading_key = f"_dashboard_loading_{_tb}"
+    loaded_key = f"_dashboard_loaded_{_tb}"
+
+    is_loaded = bool(page.data.get(loaded_key))
     
     # 2. Sección KPIs
-    fila_kpis = ft.Row(
-        [
-            card_kpi("Total Brigadas", stats.get("total_brigadas", 0), ft.Icons.SHIELD_MOON, ft.Colors.BLUE),
-            card_kpi("Total Usuarios", stats.get("total_usuarios", 0), ft.Icons.PEOPLE, ft.Colors.ORANGE),
-            card_kpi("Actividades Activas", stats.get("actividades_activas", 0), ft.Icons.LOCAL_ACTIVITY, ft.Colors.GREEN),
-            card_kpi("Completadas", stats.get("actividades_completadas", 0), ft.Icons.CHECK_CIRCLE, ft.Colors.TEAL),
-        ],
-        spacing=20,
-        alignment=ft.MainAxisAlignment.START,
-    )
+    if is_loaded and page.data.get(cache_key_stats):
+        stats = page.data[cache_key_stats]
+        fila_kpis = ft.Row(
+            [
+                card_kpi("Total Brigadas", stats.get("total_brigadas", 0), ft.Icons.SHIELD_MOON, ft.Colors.BLUE),
+                card_kpi("Total Usuarios", stats.get("total_usuarios", 0), ft.Icons.PEOPLE, ft.Colors.ORANGE),
+                card_kpi("Actividades Activas", stats.get("actividades_activas", 0), ft.Icons.LOCAL_ACTIVITY, ft.Colors.GREEN),
+                card_kpi("Completadas", stats.get("actividades_completadas", 0), ft.Icons.CHECK_CIRCLE, ft.Colors.TEAL),
+            ],
+            spacing=20, alignment=ft.MainAxisAlignment.START,
+        )
+    else:
+        spinner_kpi = ft.Container(content=ft.ProgressRing(), alignment=ft.alignment.Alignment(0, 0), height=80, expand=True)
+        fila_kpis = ft.Row([spinner_kpi], spacing=20, alignment=ft.MainAxisAlignment.CENTER)
 
     # 3. Sección Gráfica
     if HAS_CHARTS:
@@ -106,21 +117,25 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
     )
 
     # 4. Sección Actividades Recientes
-    lista_actividades = ft.Column(spacing=0)
-    if actividades:
-        for act in actividades:
-            lista_actividades.controls.append(
-                item_actividad_reciente(
-                    act.get("titulo", "Sin título"),
-                    str(act.get("fecha_inicio", "")),
-                    act.get("estado", "Pendiente"),
-                    act.get("nombre_brigada", "General")
+    if is_loaded and page.data.get(cache_key_acts) is not None:
+        actividades = page.data[cache_key_acts]
+        controles_acts = []
+        if actividades:
+            for act in actividades:
+                controles_acts.append(
+                    item_actividad_reciente(
+                        act.get("titulo", "Sin título"),
+                        str(act.get("fecha_inicio", "")),
+                        act.get("estado", "Pendiente"),
+                        act.get("nombre_brigada", "General")
+                    )
                 )
-            )
+        else:
+            controles_acts.append(ft.Text("No hay actividades recientes.", color=COLOR_TEXTO_SEC, italic=True))
+        lista_actividades = ft.Column(controles_acts, spacing=0)
     else:
-        lista_actividades.controls.append(
-            ft.Text("No hay actividades recientes.", color=COLOR_TEXTO_SEC, italic=True)
-        )
+        spinner_acts = ft.Container(content=ft.ProgressRing(), alignment=ft.alignment.Alignment(0, 0), height=100)
+        lista_actividades = ft.Column([spinner_acts], spacing=0)
 
     contenedor_actividades = card_principal(
         ft.Column(
@@ -139,8 +154,81 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         )
     )
 
-    # 5. Mensaje del día (mantener funcionalidad existente)
-    _mensaje_dia = _build_mensaje_dia(page)
+    # 5. Mensaje del día
+    if is_loaded:
+        mensaje_dia_container = ft.Container(content=_build_mensaje_dia(page))
+    else:
+        spinner_msg = ft.Container(content=ft.ProgressRing(), alignment=ft.alignment.Alignment(0, 0), height=40)
+        mensaje_dia_container = ft.Container(content=spinner_msg)
+
+    # --- Lógica de Carga Asíncrona (Aiven Cloud Optimization) ---
+    async def _load_data_async():
+        if page.data.get(loading_key) or page.data.get(loaded_key):
+            return
+        
+        page.data[loading_key] = True
+        
+        # Cargar KPIs
+        try:
+            if page.data.get(cache_key_stats):
+                stats = page.data[cache_key_stats]
+            else:
+                stats = await asyncio.to_thread(crud_dash.get_kpi_stats, _tb)
+                page.data[cache_key_stats] = stats
+
+            fila_kpis.controls = [
+                card_kpi("Total Brigadas", stats.get("total_brigadas", 0), ft.Icons.SHIELD_MOON, ft.Colors.BLUE),
+                card_kpi("Total Usuarios", stats.get("total_usuarios", 0), ft.Icons.PEOPLE, ft.Colors.ORANGE),
+                card_kpi("Actividades Activas", stats.get("actividades_activas", 0), ft.Icons.LOCAL_ACTIVITY, ft.Colors.GREEN),
+                card_kpi("Completadas", stats.get("actividades_completadas", 0), ft.Icons.CHECK_CIRCLE, ft.Colors.TEAL),
+            ]
+            fila_kpis.alignment = ft.MainAxisAlignment.START
+            if page.session: page.update()
+        except Exception as e:
+            print(f"Error cargando KPIs en hilo: {e}")
+
+        # Cargar Actividades Recientes
+        try:
+            if page.data.get(cache_key_acts):
+                actividades = page.data[cache_key_acts]
+            else:
+                actividades = await asyncio.to_thread(crud_act.obtener_actividades_recientes, 5, _tb)
+                page.data[cache_key_acts] = actividades
+
+            lista_actividades.controls.clear()
+            if actividades:
+                for act in actividades:
+                    lista_actividades.controls.append(
+                        item_actividad_reciente(
+                            act.get("titulo", "Sin título"),
+                            str(act.get("fecha_inicio", "")),
+                            act.get("estado", "Pendiente"),
+                            act.get("nombre_brigada", "General")
+                        )
+                    )
+            else:
+                lista_actividades.controls.append(
+                    ft.Text("No hay actividades recientes.", color=COLOR_TEXTO_SEC, italic=True)
+                )
+            if page.session: page.update()
+        except Exception as e:
+            print(f"Error cargando actividades en hilo: {e}")
+
+        finally:
+            page.data[loading_key] = False
+            page.data[loaded_key] = True
+
+        # Cargar Mensaje del Día
+        try:
+            # Reutilizamos _build_mensaje_dia de forma síncrona dentro del hilo
+            msg_control = await asyncio.to_thread(_build_mensaje_dia, page)
+            mensaje_dia_container.content = msg_control
+            if page.session: page.update()
+        except Exception as e:
+            print(f"Error cargando msg: {e}")
+
+    if not is_loaded:
+        page.run_task(_load_data_async)
 
 
     # Layout Principal
@@ -159,7 +247,7 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
                 vertical_alignment=ft.CrossAxisAlignment.START,
             ),
             ft.Container(height=20),
-            _mensaje_dia,
+            mensaje_dia_container,
         ],
         scroll=ft.ScrollMode.AUTO,
         expand=True,
@@ -199,7 +287,12 @@ def _build_mensaje_dia(page):
     
     usuario = _get_usuario_actual(page)
     puede_editar = _puede_editar_mensaje_dia(usuario.get("rol", ""))
-    mensaje_actual = get_mensaje_dia() or ""
+    cache_key_msg = "_cache_msg_dia"
+    if page.data.get(cache_key_msg) is not None:
+        mensaje_actual = page.data[cache_key_msg]
+    else:
+        mensaje_actual = get_mensaje_dia() or ""
+        page.data[cache_key_msg] = mensaje_actual
 
     if not mensaje_actual.strip() and not puede_editar:
         return ft.Container()
@@ -213,6 +306,7 @@ def _build_mensaje_dia(page):
     
     def guardar_msg(e):
         set_mensaje_dia(campo_mensaje.value)
+        page.data[cache_key_msg] = campo_mensaje.value
         if texto_ref.current: texto_ref.current.value = campo_mensaje.value
         dlg.open = False
         page.update()

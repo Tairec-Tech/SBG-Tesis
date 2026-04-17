@@ -5,8 +5,13 @@ Filtrado por tipo_brigada para aislamiento de datos.
 from database.connection import ejecutar, ejecutar_modificar
 
 
+_TABLA_TURNO_VERIFICADA = False
+
 def _asegurar_tabla_turno():
     """Crea la tabla si no existe."""
+    global _TABLA_TURNO_VERIFICADA
+    if _TABLA_TURNO_VERIFICADA:
+        return
     sql = """
     CREATE TABLE IF NOT EXISTS `turno` (
       `idTurno` INT(11) NOT NULL AUTO_INCREMENT,
@@ -26,6 +31,7 @@ def _asegurar_tabla_turno():
     """
     try:
         ejecutar(sql, commit=True)
+        _TABLA_TURNO_VERIFICADA = True
     except Exception as e:
         print(f"[turno] tabla ya existe o error: {e}")
 

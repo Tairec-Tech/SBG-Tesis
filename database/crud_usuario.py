@@ -16,7 +16,7 @@ def buscar_usuario_por_email(email: str):
     try:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(
-            "SELECT idUsuario, nombre, apellido, email, contrasena, rol, Brigada_idBrigada FROM Usuario WHERE email = %s",
+            "SELECT idUsuario, nombre, apellido, email, contrasena, rol, Brigada_idBrigada FROM usuario WHERE email = %s",
             (email.strip().lower(),),
         )
         return cursor.fetchone()
@@ -39,10 +39,10 @@ def verificar_login(email: str, password: str):
 def _asegurar_columna_cdce(cursor):
     """Verifica y añade la columna cdce si no existe."""
     try:
-        cursor.execute("SELECT cdce FROM Institucion_Educativa LIMIT 1")
+        cursor.execute("SELECT cdce FROM institucion_educativa LIMIT 1")
         cursor.fetchall()
     except Exception:
-        cursor.execute("ALTER TABLE Institucion_Educativa ADD COLUMN cdce VARCHAR(100)")
+        cursor.execute("ALTER TABLE institucion_educativa ADD COLUMN cdce VARCHAR(100)")
 
 
 def crear_institucion(nombre: str, direccion: str, telefono: str, cdce: str = None) -> int:
@@ -52,7 +52,7 @@ def crear_institucion(nombre: str, direccion: str, telefono: str, cdce: str = No
         cursor = conn.cursor()
         _asegurar_columna_cdce(cursor)
         cursor.execute(
-            "INSERT INTO Institucion_Educativa (nombre_institucion, direccion, telefono, cdce) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO institucion_educativa (nombre_institucion, direccion, telefono, cdce) VALUES (%s, %s, %s, %s)",
             (nombre, direccion, telefono, cdce),
         )
         conn.commit()
@@ -69,11 +69,11 @@ def listar_instituciones():
         _asegurar_columna_cdce(cursor)
         try:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce FROM Institucion_Educativa ORDER BY nombre_institucion"
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce FROM institucion_educativa ORDER BY nombre_institucion"
             )
         except Exception:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono, cdce FROM Institucion_Educativa ORDER BY nombre_institucion"
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, cdce FROM institucion_educativa ORDER BY nombre_institucion"
             )
         rows = cursor.fetchall()
         for r in rows:
@@ -92,12 +92,12 @@ def obtener_institucion_por_id(id_institucion: int):
         _asegurar_columna_cdce(cursor)
         try:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce FROM Institucion_Educativa WHERE idInstitucion = %s",
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, logo_ruta, cdce FROM institucion_educativa WHERE idInstitucion = %s",
                 (id_institucion,),
             )
         except Exception:
             cursor.execute(
-                "SELECT idInstitucion, nombre_institucion, direccion, telefono, cdce FROM Institucion_Educativa WHERE idInstitucion = %s",
+                "SELECT idInstitucion, nombre_institucion, direccion, telefono, cdce FROM institucion_educativa WHERE idInstitucion = %s",
                 (id_institucion,),
             )
         row = cursor.fetchone()
@@ -119,9 +119,9 @@ def obtener_institucion_por_usuario(id_usuario: int):
             cursor.execute(
                 """
                 SELECT i.idInstitucion, i.nombre_institucion, i.logo_ruta
-                FROM Usuario u
-                LEFT JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
-                INNER JOIN Institucion_Educativa i ON i.idInstitucion = COALESCE(u.Institucion_Educativa_idInstitucion, b.Institucion_Educativa_idInstitucion)
+                FROM usuario u
+                LEFT JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
+                INNER JOIN institucion_educativa i ON i.idInstitucion = COALESCE(u.Institucion_Educativa_idInstitucion, b.Institucion_Educativa_idInstitucion)
                 WHERE u.idUsuario = %s AND (u.Institucion_Educativa_idInstitucion IS NOT NULL OR u.Brigada_idBrigada IS NOT NULL)
                 """,
                 (id_usuario,),
@@ -137,9 +137,9 @@ def obtener_institucion_por_usuario(id_usuario: int):
             cursor.execute(
                 """
                 SELECT i.idInstitucion, i.nombre_institucion, i.logo_ruta
-                FROM Usuario u
-                INNER JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
-                INNER JOIN Institucion_Educativa i ON i.idInstitucion = b.Institucion_Educativa_idInstitucion
+                FROM usuario u
+                INNER JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
+                INNER JOIN institucion_educativa i ON i.idInstitucion = b.Institucion_Educativa_idInstitucion
                 WHERE u.idUsuario = %s
                 """,
                 (id_usuario,),
@@ -159,7 +159,7 @@ def actualizar_logo_institucion(id_institucion: int, logo_ruta: str):
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("UPDATE Institucion_Educativa SET logo_ruta = %s WHERE idInstitucion = %s", (logo_ruta, id_institucion))
+        cursor.execute("UPDATE institucion_educativa SET logo_ruta = %s WHERE idInstitucion = %s", (logo_ruta, id_institucion))
         conn.commit()
     finally:
         conn.close()
@@ -173,7 +173,7 @@ def listar_brigadas_por_institucion(institucion_id: int):
         cursor.execute(
             """
             SELECT idBrigada, nombre_brigada, area_accion, Institucion_Educativa_idInstitucion
-            FROM Brigada WHERE Institucion_Educativa_idInstitucion = %s ORDER BY idBrigada
+            FROM brigada WHERE Institucion_Educativa_idInstitucion = %s ORDER BY idBrigada
             """,
             (institucion_id,),
         )
@@ -192,7 +192,7 @@ def crear_brigada(nombre_brigada: str, area_accion: str, institucion_id: int, pr
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO Brigada (nombre_brigada, area_accion, Institucion_Educativa_idInstitucion, profesor_id)
+            INSERT INTO brigada (nombre_brigada, area_accion, Institucion_Educativa_idInstitucion, profesor_id)
             VALUES (%s, %s, %s, %s)
             """,
             (nombre_brigada, area_accion, institucion_id, profesor_id),
@@ -215,7 +215,7 @@ def crear_usuario(nombre: str, apellido: str, email: str, contrasena_plana: str,
         try:
             cursor.execute(
                 """
-                INSERT INTO Usuario (nombre, apellido, cedula, email, usuario, contrasena, rol, Brigada_idBrigada, Institucion_Educativa_idInstitucion)
+                INSERT INTO usuario (nombre, apellido, cedula, email, usuario, contrasena, rol, Brigada_idBrigada, Institucion_Educativa_idInstitucion)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (nombre, apellido, cedula_val, email.strip().lower(), usuario_val, hash_password(contrasena_plana), rol, brigada_id, institucion_id),
@@ -225,7 +225,7 @@ def crear_usuario(nombre: str, apellido: str, email: str, contrasena_plana: str,
             if "cedula" in err and "unknown column" in err:
                 cursor.execute(
                     """
-                    INSERT INTO Usuario (nombre, apellido, email, usuario, contrasena, rol, Brigada_idBrigada, Institucion_Educativa_idInstitucion)
+                    INSERT INTO usuario (nombre, apellido, email, usuario, contrasena, rol, Brigada_idBrigada, Institucion_Educativa_idInstitucion)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (nombre, apellido, email.strip().lower(), usuario_val, hash_password(contrasena_plana), rol, brigada_id, institucion_id),
@@ -233,7 +233,7 @@ def crear_usuario(nombre: str, apellido: str, email: str, contrasena_plana: str,
             elif "usuario" in err and "unknown column" in err:
                 cursor.execute(
                     """
-                    INSERT INTO Usuario (nombre, apellido, cedula, email, contrasena, rol, Brigada_idBrigada)
+                    INSERT INTO usuario (nombre, apellido, cedula, email, contrasena, rol, Brigada_idBrigada)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
                     (nombre, apellido, cedula_val, email.strip().lower(), hash_password(contrasena_plana), rol, brigada_id),
@@ -241,7 +241,7 @@ def crear_usuario(nombre: str, apellido: str, email: str, contrasena_plana: str,
             elif "institucion_educativa_idinstitucion" in err or "unknown column" in err:
                 cursor.execute(
                     """
-                    INSERT INTO Usuario (nombre, apellido, cedula, email, usuario, contrasena, rol, Brigada_idBrigada)
+                    INSERT INTO usuario (nombre, apellido, cedula, email, usuario, contrasena, rol, Brigada_idBrigada)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (nombre, apellido, cedula_val, email.strip().lower(), usuario_val, hash_password(contrasena_plana), rol, brigada_id),
@@ -272,7 +272,7 @@ def obtener_id_usuario_por_cedula(cedula: str) -> int | None:
     try:
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT idUsuario FROM Usuario WHERE cedula = %s LIMIT 1", (cedula.strip(),))
+            cursor.execute("SELECT idUsuario FROM usuario WHERE cedula = %s LIMIT 1", (cedula.strip(),))
             row = cursor.fetchone()
             return row[0] if row else None
         except Exception as e:
@@ -291,7 +291,7 @@ def usuario_ya_existe(usuario: str) -> bool:
     try:
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT 1 FROM Usuario WHERE usuario = %s", (usuario.strip().lower(),))
+            cursor.execute("SELECT 1 FROM usuario WHERE usuario = %s", (usuario.strip().lower(),))
             return cursor.fetchone() is not None
         except Exception as e:
             if "usuario" in str(e).lower() and "unknown column" in str(e).lower():
@@ -313,13 +313,13 @@ def verificar_login_por_usuario_e_institucion(institucion_id: int, usuario: str,
     try:
         cursor = conn.cursor(dictionary=True)
         usuario_str = (usuario or "").strip().lower()
-        # Intentar con columna Institucion_Educativa_idInstitucion en Usuario (LEFT JOIN Brigada)
+        # Intentar con columna Institucion_Educativa_idInstitucion en Usuario (LEFT JOIN brigada)
         try:
             cursor.execute(
                 """
                 SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.usuario, u.contrasena, u.rol, u.Brigada_idBrigada, u.Institucion_Educativa_idInstitucion
-                FROM Usuario u
-                LEFT JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+                FROM usuario u
+                LEFT JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
                 WHERE (u.Institucion_Educativa_idInstitucion = %s OR b.Institucion_Educativa_idInstitucion = %s)
                   AND (u.usuario = %s OR u.email = %s)
                 LIMIT 1
@@ -332,8 +332,8 @@ def verificar_login_por_usuario_e_institucion(institucion_id: int, usuario: str,
                 cursor.execute(
                     """
                     SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.usuario, u.contrasena, u.rol, u.Brigada_idBrigada
-                    FROM Usuario u
-                    INNER JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+                    FROM usuario u
+                    INNER JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
                     WHERE b.Institucion_Educativa_idInstitucion = %s
                       AND (u.usuario = %s OR u.email = %s)
                     LIMIT 1
@@ -370,8 +370,8 @@ def listar_brigadistas():
                 """
                 SELECT u.idUsuario, u.nombre, u.apellido, u.cedula, u.email, u.rol, u.Brigada_idBrigada,
                        b.nombre_brigada
-                FROM Usuario u
-                LEFT JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+                FROM usuario u
+                LEFT JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
                 ORDER BY u.nombre, u.apellido
                 """
             )
@@ -380,8 +380,8 @@ def listar_brigadistas():
                 """
                 SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.rol, u.Brigada_idBrigada,
                        b.nombre_brigada
-                FROM Usuario u
-                LEFT JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+                FROM usuario u
+                LEFT JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
                 ORDER BY u.nombre, u.apellido
                 """
             )
@@ -406,8 +406,8 @@ def listar_brigadistas_visibles_only():
                 """
                 SELECT u.idUsuario, u.nombre, u.apellido, u.cedula, u.email, u.rol, u.Brigada_idBrigada,
                        b.nombre_brigada
-                FROM Usuario u
-                LEFT JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+                FROM usuario u
+                LEFT JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
                 WHERE u.rol IN ('Profesor', 'Brigadista Jefe', 'Subjefe', 'Brigadista')
                 ORDER BY u.rol = 'Profesor' DESC, u.nombre, u.apellido
                 """
@@ -417,8 +417,8 @@ def listar_brigadistas_visibles_only():
                 """
                 SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.rol, u.Brigada_idBrigada,
                        b.nombre_brigada
-                FROM Usuario u
-                LEFT JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+                FROM usuario u
+                LEFT JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
                 WHERE u.rol IN ('Profesor', 'Brigadista Jefe', 'Subjefe', 'Brigadista')
                 ORDER BY u.rol = 'Profesor' DESC, u.nombre, u.apellido
                 """
@@ -442,8 +442,8 @@ def listar_alumnos_del_profesor(profesor_id: int):
         cursor.execute(
             """
             SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.rol
-            FROM Usuario u
-            INNER JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada AND b.profesor_id = %s
+            FROM usuario u
+            INNER JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada AND b.profesor_id = %s
             WHERE u.rol IN ('Brigadista Jefe', 'Subjefe', 'Brigadista')
             ORDER BY u.nombre, u.apellido
             """,
@@ -461,12 +461,12 @@ def obtener_usuario(id_usuario: int):
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT idUsuario, nombre, apellido, cedula, email, rol, Brigada_idBrigada FROM Usuario WHERE idUsuario = %s",
+                "SELECT idUsuario, nombre, apellido, cedula, email, rol, Brigada_idBrigada FROM usuario WHERE idUsuario = %s",
                 (id_usuario,),
             )
         except Exception:
             cursor.execute(
-                "SELECT idUsuario, nombre, apellido, email, rol, Brigada_idBrigada FROM Usuario WHERE idUsuario = %s",
+                "SELECT idUsuario, nombre, apellido, email, rol, Brigada_idBrigada FROM usuario WHERE idUsuario = %s",
                 (id_usuario,),
             )
         row = cursor.fetchone()
@@ -486,7 +486,7 @@ def actualizar_usuario(id_usuario: int, nombre: str, apellido: str, email: str, 
         try:
             cursor.execute(
                 """
-                UPDATE Usuario SET nombre = %s, apellido = %s, email = %s, rol = %s, Brigada_idBrigada = %s, cedula = %s
+                UPDATE usuario SET nombre = %s, apellido = %s, email = %s, rol = %s, Brigada_idBrigada = %s, cedula = %s
                 WHERE idUsuario = %s
                 """,
                 (nombre, apellido, email.strip().lower(), rol, brigada_id, cedula_val, id_usuario),
@@ -495,7 +495,7 @@ def actualizar_usuario(id_usuario: int, nombre: str, apellido: str, email: str, 
             if "cedula" in str(e).lower() and "unknown column" in str(e).lower():
                 cursor.execute(
                     """
-                    UPDATE Usuario SET nombre = %s, apellido = %s, email = %s, rol = %s, Brigada_idBrigada = %s
+                    UPDATE usuario SET nombre = %s, apellido = %s, email = %s, rol = %s, Brigada_idBrigada = %s
                     WHERE idUsuario = %s
                     """,
                     (nombre, apellido, email.strip().lower(), rol, brigada_id, id_usuario),
@@ -514,7 +514,7 @@ def eliminar_usuario(id_usuario: int) -> str | None:
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM Usuario WHERE idUsuario = %s", (id_usuario,))
+        cursor.execute("DELETE FROM usuario WHERE idUsuario = %s", (id_usuario,))
         conn.commit()
         return None
     except Exception as e:
@@ -529,7 +529,7 @@ def resetear_contrasena(email: str, nueva_contrasena_plana: str) -> bool:
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE Usuario SET contrasena = %s WHERE email = %s",
+            "UPDATE usuario SET contrasena = %s WHERE email = %s",
             (hash_password(nueva_contrasena_plana), email.strip().lower()),
         )
         conn.commit()
@@ -611,7 +611,7 @@ def procesar_reseteo_con_token(token_crudo: str, nueva_contrasena_plana: str):
             
         usuario_id = record['usuario_id']
         
-        cursor.execute("UPDATE Usuario SET contrasena = %s WHERE idUsuario = %s", (hash_password(nueva_contrasena_plana), usuario_id))
+        cursor.execute("UPDATE usuario SET contrasena = %s WHERE idUsuario = %s", (hash_password(nueva_contrasena_plana), usuario_id))
         cursor.execute("UPDATE password_resets SET used_at = NOW() WHERE id = %s", (record['id'],))
         conn.commit()
         
@@ -654,8 +654,8 @@ def listar_profesores_institucion(institucion_id: int):
         cursor.execute(
             """
             SELECT DISTINCT u.idUsuario, u.nombre, u.apellido, u.email
-            FROM Usuario u
-            JOIN Brigada b ON b.idBrigada = u.Brigada_idBrigada
+            FROM usuario u
+            JOIN brigada b ON b.idBrigada = u.Brigada_idBrigada
             WHERE b.Institucion_Educativa_idInstitucion = %s
               AND u.rol = 'Profesor'
             ORDER BY u.nombre, u.apellido
@@ -678,7 +678,7 @@ def listar_brigadas_profesor(profesor_id: int):
         cursor.execute(
             """
             SELECT b.idBrigada, b.nombre_brigada, b.area_accion, b.fecha_creacion, b.profesor_id, b.subjefe_id
-            FROM Brigada b
+            FROM brigada b
             WHERE b.profesor_id = %s
             ORDER BY b.fecha_creacion DESC
             """,
@@ -701,8 +701,8 @@ def listar_brigadas_otros_profesores(profesor_id: int, institucion_id: int):
             """
             SELECT b.idBrigada, b.nombre_brigada, b.area_accion, b.fecha_creacion, b.profesor_id, b.subjefe_id,
                    u.nombre AS profesor_nombre, u.apellido AS profesor_apellido
-            FROM Brigada b
-            LEFT JOIN Usuario u ON u.idUsuario = b.profesor_id
+            FROM brigada b
+            LEFT JOIN usuario u ON u.idUsuario = b.profesor_id
             WHERE b.Institucion_Educativa_idInstitucion = %s
               AND b.profesor_id != %s
               AND b.profesor_id IS NOT NULL
@@ -721,7 +721,7 @@ def asignar_subjefe_brigada(brigada_id: int, subjefe_id: int):
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE Brigada SET subjefe_id = %s WHERE idBrigada = %s",
+            "UPDATE brigada SET subjefe_id = %s WHERE idBrigada = %s",
             (subjefe_id, brigada_id),
         )
         conn.commit()
@@ -738,7 +738,7 @@ def obtener_brigada(brigada_id: int):
             """
             SELECT b.idBrigada, b.nombre_brigada, b.area_accion, b.fecha_creacion,
                    b.Institucion_Educativa_idInstitucion, b.profesor_id, b.subjefe_id
-            FROM Brigada b
+            FROM brigada b
             WHERE b.idBrigada = %s
             """,
             (brigada_id,),
@@ -759,7 +759,7 @@ def listar_brigadistas_brigada(brigada_id: int):
         cursor.execute(
             """
             SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.rol
-            FROM Usuario u
+            FROM usuario u
             WHERE u.Brigada_idBrigada = %s
               AND u.rol IN ('Brigadista Jefe', 'Subjefe', 'Brigadista')
             ORDER BY
@@ -788,7 +788,7 @@ def listar_brigadistas_visibles(brigada_id: int):
         cursor.execute(
             """
             SELECT u.idUsuario, u.nombre, u.apellido, u.email, u.rol
-            FROM Usuario u
+            FROM usuario u
             WHERE u.Brigada_idBrigada = %s
               AND u.rol IN ('Brigadista Jefe', 'Brigadista')
             ORDER BY

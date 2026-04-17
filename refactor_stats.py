@@ -1,138 +1,15 @@
-"""
-Estadísticas — Gráficos con flet_charts (BarChart, LineChart, PieChart).
-Configuración dinámica por tipo de brigada para coherencia semántica.
-Fallback "En construcción" si flet_charts no está instalado.
-"""
+import os
 
-import flet as ft
-from theme import (
-    COLOR_TEXTO,
-    COLOR_TEXTO_SEC,
-    COLOR_FONDO_VERDE,
-    COLOR_PRIMARIO,
-    COLOR_PRIMARIO_CLARO,
-    COLOR_PRIMARIO_OSCURO,
-    COLOR_VERDE_SUAVE,
-    COLOR_BORDE,
-)
-from components import titulo_pagina, card_principal, card_kpi
-import database.crud_estadisticas as crud_est
+file_path = 'screens/screen_statistics.py'
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-# Gráficos: paquete opcional (pip install flet-charts)
-try:
-    import flet_charts as fch
-    HAS_CHARTS = True
-except ImportError:
-    fch = None
-    HAS_CHARTS = False
+import re
 
-# ==============================================================
-# CONFIGURACIÓN SEMÁNTICA POR TIPO DE BRIGADA
-# ==============================================================
+# We will split the file to insert helper functions right before _build_con_graficos
+split_idx = content.find("def _build_con_graficos(")
 
-_CONFIG_BRIGADA = {
-    "ecologica": {
-        "titulo": "Centro de Mando — Brigada Ecológica",
-        "subtitulo": "Monitoreo del avance e impacto ambiental",
-        "kpi_voluntarios": ("Voluntarios", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
-        "kpi_horas": ("Horas Ecológicas", ft.Icons.ECO_ROUNDED, ft.Colors.GREEN),
-        "kpi_despliegue": ("Despliegue", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
-        "kpi_impactos": ("Impactos Ambientales", ft.Icons.PUBLIC_ROUNDED, ft.Colors.PURPLE),
-        "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
-        "chart_barras_titulo": "📊 Jornadas Ecológicas por Mes",
-        "chart_barras_tooltip": "jornadas",
-        "chart_linea_titulo": "📈 Tendencia de Reportes Ambientales",
-        "chart_pie_titulo": "🍩 Estados de Jornadas Ecológicas",
-        "colores_barras": ["#10b981", "#059669", "#047857", "#065f46", "#064e3b", "#022c22"],
-        "color_linea": "#10b981",
-    },
-    "convivencia": {
-        "titulo": "Centro de Mando — Convivencia y Paz",
-        "subtitulo": "Seguimiento de mediaciones y convivencia escolar",
-        "kpi_voluntarios": ("Mediadores", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
-        "kpi_horas": ("Horas de Mediación", ft.Icons.HANDSHAKE_ROUNDED, ft.Colors.INDIGO),
-        "kpi_despliegue": ("Cobertura", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
-        "kpi_impactos": ("Casos Documentados", ft.Icons.DESCRIPTION_ROUNDED, ft.Colors.PURPLE),
-        "kpi_efectividad": ("Resolución", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
-        "chart_barras_titulo": "📊 Actividades de Mediación por Mes",
-        "chart_barras_tooltip": "mediaciones",
-        "chart_linea_titulo": "📈 Tendencia de Reportes de Convivencia",
-        "chart_pie_titulo": "🍩 Estados de Actividades de Convivencia",
-        "colores_barras": ["#6366f1", "#4f46e5", "#4338ca", "#3730a3", "#312e81", "#1e1b4b"],
-        "color_linea": "#6366f1",
-    },
-    "riesgo": {
-        "titulo": "Centro de Mando — Gestión de Riesgo",
-        "subtitulo": "Control operativo de prevención y respuesta ante riesgos",
-        "kpi_voluntarios": ("Operadores", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
-        "kpi_horas": ("Horas de Prevención", ft.Icons.HEALTH_AND_SAFETY_ROUNDED, ft.Colors.AMBER),
-        "kpi_despliegue": ("Despliegue", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
-        "kpi_impactos": ("Riesgos Evaluados", ft.Icons.WARNING_AMBER_ROUNDED, ft.Colors.RED),
-        "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
-        "chart_barras_titulo": "📊 Simulacros y Operativos por Mes",
-        "chart_barras_tooltip": "operativos",
-        "chart_linea_titulo": "📈 Tendencia de Reportes de Riesgo",
-        "chart_pie_titulo": "🍩 Estados de Operativos",
-        "colores_barras": ["#f59e0b", "#d97706", "#b45309", "#92400e", "#78350f", "#451a03"],
-        "color_linea": "#f59e0b",
-    },
-    "patrulla": {
-        "titulo": "Centro de Mando — Patrulla Escolar",
-        "subtitulo": "Supervisión de seguridad vial y vigilancia escolar",
-        "kpi_voluntarios": ("Patrulleros", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
-        "kpi_horas": ("Horas de Vigilancia", ft.Icons.SHIELD_ROUNDED, ft.Colors.CYAN),
-        "kpi_despliegue": ("Cobertura", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
-        "kpi_impactos": ("Incidencias Reportadas", ft.Icons.REPORT_ROUNDED, ft.Colors.RED),
-        "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
-        "chart_barras_titulo": "📊 Turnos de Vigilancia por Mes",
-        "chart_barras_tooltip": "turnos",
-        "chart_linea_titulo": "📈 Tendencia de Reportes de Patrulla",
-        "chart_pie_titulo": "🍩 Estados de Operaciones de Patrulla",
-        "colores_barras": ["#06b6d4", "#0891b2", "#0e7490", "#155e75", "#164e63", "#083344"],
-        "color_linea": "#06b6d4",
-    },
-}
-
-# Configuración por defecto (vista global, sin brigada activa)
-_CONFIG_DEFAULT = {
-    "titulo": "Centro de Mando Estadístico",
-    "subtitulo": "Monitoreo global del avance e impacto de todas las brigadas",
-    "kpi_voluntarios": ("Brigadistas", ft.Icons.PEOPLE_ALT_ROUNDED, ft.Colors.BLUE),
-    "kpi_horas": ("Horas Registradas", ft.Icons.HOURGLASS_BOTTOM_ROUNDED, ft.Colors.GREEN),
-    "kpi_despliegue": ("Despliegue", ft.Icons.SHARE_LOCATION_ROUNDED, ft.Colors.ORANGE),
-    "kpi_impactos": ("Impactos", ft.Icons.PUBLIC_ROUNDED, ft.Colors.PURPLE),
-    "kpi_efectividad": ("Efectividad", ft.Icons.TRENDING_UP_ROUNDED, ft.Colors.TEAL),
-    "chart_barras_titulo": "📊 Actividades por Mes",
-    "chart_barras_tooltip": "actividades",
-    "chart_linea_titulo": "📈 Tendencia de Reportes",
-    "chart_pie_titulo": "🍩 Distribución de Estados de Actividades",
-    "colores_barras": ["#10b981", "#059669", "#047857", "#065f46", "#064e3b", "#022c22"],
-    "color_linea": "#10b981",
-}
-
-
-def _get_config(tipo_brigada: str | None) -> dict:
-    """Devuelve la configuración semántica para el tipo de brigada activo."""
-    if tipo_brigada and tipo_brigada in _CONFIG_BRIGADA:
-        return _CONFIG_BRIGADA[tipo_brigada]
-    return _CONFIG_DEFAULT
-
-
-def _tarjeta_grafico(titulo: str, grafico: ft.Control, altura: float = 320) -> ft.Container:
-    return card_principal(
-        ft.Column(
-            [
-                ft.Text(titulo, size=18, weight="bold", color=COLOR_TEXTO),
-                ft.Container(height=20),
-                ft.Container(content=grafico, height=altura),
-            ],
-            spacing=0,
-        ),
-        padding=24,
-    )
-
-
-
+helpers = """
 def _build_kpis(kpis, cfg):
     lbl_vol, ico_vol, clr_vol = cfg["kpi_voluntarios"]
     lbl_hrs, ico_hrs, clr_hrs = cfg["kpi_horas"]
@@ -247,7 +124,9 @@ def _build_pie_chart(estados):
             ], spacing=0, vertical_alignment=ft.CrossAxisAlignment.CENTER))
     return fch.PieChart(expand=True, sections_space=3, center_space_radius=46, center_space_color=ft.Colors.SURFACE, sections=pie_sections), leyenda_items
 
-def _build_con_graficos(page: ft.Page) -> ft.Control:
+"""
+
+new_build_main = """def _build_con_graficos(page: ft.Page) -> ft.Control:
     # 1. Obtener tipo de brigada y cfg sincrónicamente
     _tb = (page.data or {}).get("brigada_activa")
     cfg = _get_config(_tb)
@@ -263,11 +142,11 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
     is_loaded = bool(page.data.get(loaded_key))
     
     # Contenedores vacíos para reemplazo de contenido dinámico
-    kpis_container = ft.Container(height=110, alignment=ft.alignment.Alignment(0, 0))
-    bar_container = ft.Container(height=320, alignment=ft.alignment.Alignment(0, 0))
-    line_container = ft.Container(height=320, alignment=ft.alignment.Alignment(0, 0))
-    pie_chart_container = ft.Container(height=280, alignment=ft.alignment.Alignment(0, 0), expand=True)
-    pie_legend_container = ft.Container(alignment=ft.alignment.Alignment(0, 0))
+    kpis_container = ft.Container(height=110, alignment=ft.alignment.center)
+    bar_container = ft.Container(height=320, alignment=ft.alignment.center)
+    line_container = ft.Container(height=320, alignment=ft.alignment.center)
+    pie_chart_container = ft.Container(height=280, alignment=ft.alignment.center, expand=True)
+    pie_legend_container = ft.Container(alignment=ft.alignment.center)
 
     def popular_vistas():
         kpis_data = page.data.get(ck_kpis, {})
@@ -360,59 +239,14 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
             ft.Container(height=24),
         ], scroll=ft.ScrollMode.AUTO, expand=True, spacing=0
     )
+"""
 
+before_build = content[:split_idx]
+end_build_idx = content.find("def _build_sin_graficos() -> ft.Control:")
+after_build = content[end_build_idx:]
 
-def _build_sin_graficos() -> ft.Control:
-    """Vista cuando flet_charts no está instalado."""
-    return ft.Column(
-        [
-            titulo_pagina(
-                "Estadísticas",
-                "Sistema de coordinación de brigadas escolares",
-            ),
-            ft.Container(height=32),
-            card_principal(
-                ft.Column(
-                    [
-                        ft.Icon(ft.Icons.CONSTRUCTION_OUTLINED, color=COLOR_PRIMARIO, size=64),
-                        ft.Container(height=24),
-                        ft.Text("En construcción", size=22, weight="bold", color=COLOR_TEXTO),
-                        ft.Container(height=8),
-                        ft.Text(
-                            "Los gráficos requieren el paquete flet-charts. Instálalo con: pip install flet-charts",
-                            size=14,
-                            color=COLOR_TEXTO_SEC,
-                            text_align=ft.TextAlign.CENTER,
-                        ),
-                        ft.Container(height=8),
-                        ft.Text(
-                            "Después reinicia la aplicación.",
-                            size=13,
-                            color=COLOR_TEXTO_SEC,
-                            text_align=ft.TextAlign.CENTER,
-                        ),
-                    ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=0,
-                ),
-                padding=48,
-            ),
-        ],
-        scroll=ft.ScrollMode.AUTO,
-        expand=True,
-        spacing=0,
-    )
+final_content = before_build + helpers + new_build_main + "\n\n" + after_build
 
-
-def build(page: ft.Page, **kwargs) -> ft.Control:
-    if HAS_CHARTS:
-        contenido = _build_con_graficos(page)
-    else:
-        contenido = _build_sin_graficos()
-
-    return ft.Container(
-        content=contenido,
-        padding=24,
-        bgcolor=COLOR_FONDO_VERDE,
-        expand=True,
-    )
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(final_content)
+print("File updated successfully.")

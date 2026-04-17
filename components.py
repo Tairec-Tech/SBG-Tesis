@@ -29,10 +29,13 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
     vista_actual: list de 1 elemento con el nombre de la vista activa.
     on_nav_change: callback para reconstruir el sidebar al cambiar de vista (así se ilumina el ítem correcto).
     """
-    def ir(vista_nombre, builder):
+    def ir(vista_nombre, module_name):
         def _(e):
             vista_actual[0] = vista_nombre
-            contenido_area.content = builder(page, content_area=contenido_area)
+            # Lazy import
+            import importlib
+            modulo = importlib.import_module(f"screens.{module_name}")
+            contenido_area.content = modulo.build(page, content_area=contenido_area)
             if on_nav_change:
                 on_nav_change()
             page.update()
@@ -40,32 +43,20 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
 
     sel = vista_actual[0]
 
-    from screens import (
-        screen_dashboard,
-        screen_brigades,
-        screen_brigadistas,
-        screen_shifts,
-        screen_reports,
-        screen_statistics,
-        screen_content,
-        screen_activities,
-        screen_reports_impact,
-        screen_reports_activities,
-        screen_utilidades,
-    )
+    import importlib
 
     items = [
-        ("Panel Principal", ft.Icons.DASHBOARD_OUTLINED, screen_dashboard.build),
-        ("Gestión de Brigadas", ft.Icons.SHIELD_OUTLINED, screen_brigades.build),
-        ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, screen_activities.build),
-        ("Brigadistas", ft.Icons.PEOPLE_OUTLINED, screen_brigadistas.build),
-        ("Turnos y Horarios", ft.Icons.CALENDAR_MONTH_OUTLINED, screen_shifts.build),
-        ("Reportes de Impacto", ft.Icons.PUBLIC, screen_reports_impact.build),
-        ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, screen_reports.build),
-        ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, screen_reports_activities.build),
-        ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, screen_statistics.build),
-        ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, screen_content.build),
-        ("Utilidades", ft.Icons.BUILD_OUTLINED, screen_utilidades.build),
+        ("Panel Principal", ft.Icons.DASHBOARD_OUTLINED, "screen_dashboard"),
+        ("Gestión de Brigadas", ft.Icons.SHIELD_OUTLINED, "screen_brigades"),
+        ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, "screen_activities"),
+        ("Brigadistas", ft.Icons.PEOPLE_OUTLINED, "screen_brigadistas"),
+        ("Turnos y Horarios", ft.Icons.CALENDAR_MONTH_OUTLINED, "screen_shifts"),
+        ("Reportes de Impacto", ft.Icons.PUBLIC, "screen_reports_impact"),
+        ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, "screen_reports"),
+        ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, "screen_reports_activities"),
+        ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, "screen_statistics"),
+        ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, "screen_content"),
+        ("Utilidades", ft.Icons.BUILD_OUTLINED, "screen_utilidades"),
     ]
 
     nav_items = []

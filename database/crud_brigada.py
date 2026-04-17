@@ -21,7 +21,7 @@ def insertar_brigada(nombre, descripcion, coordinador, color_identificador, inst
         try:
             cursor.execute(
                 """
-                INSERT INTO Brigada (
+                INSERT INTO brigada (
                     nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
                     tipo_brigada, Institucion_Educativa_idInstitucion, profesor_id, subjefe_id
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -32,7 +32,7 @@ def insertar_brigada(nombre, descripcion, coordinador, color_identificador, inst
             if "subjefe_id" in str(e) or "Unknown column" in str(e):
                 cursor.execute(
                     """
-                    INSERT INTO Brigada (
+                    INSERT INTO brigada (
                         nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
                         tipo_brigada, Institucion_Educativa_idInstitucion, profesor_id
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -66,9 +66,9 @@ def listar_brigadas(tipo_brigada=None):
                     b.descripcion, b.coordinador, b.color_identificador, b.profesor_id,
                     p.nombre AS profesor_nombre, p.apellido AS profesor_apellido,
                     COUNT(u.idUsuario) AS num_miembros
-                FROM Brigada b
-                LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
-                LEFT JOIN Usuario p ON p.idUsuario = b.profesor_id
+                FROM brigada b
+                LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
+                LEFT JOIN usuario p ON p.idUsuario = b.profesor_id
                 {filtro}
                 GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador,
                          b.profesor_id, p.nombre, p.apellido
@@ -83,8 +83,8 @@ def listar_brigadas(tipo_brigada=None):
                     SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
                         b.descripcion, b.coordinador, b.color_identificador,
                         COUNT(u.idUsuario) AS num_miembros
-                    FROM Brigada b
-                    LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
+                    FROM brigada b
+                    LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
                     {filtro}
                     GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador
                     ORDER BY b.nombre_brigada
@@ -96,8 +96,8 @@ def listar_brigadas(tipo_brigada=None):
                     f"""
                     SELECT b.idBrigada, b.nombre_brigada, b.area_accion,
                         COUNT(u.idUsuario) AS num_miembros
-                    FROM Brigada b
-                    LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
+                    FROM brigada b
+                    LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
                     {filtro}
                     GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion
                     ORDER BY b.nombre_brigada
@@ -128,7 +128,7 @@ def obtener_brigada(id_brigada: int):
                 """
                 SELECT idBrigada, nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
                     Institucion_Educativa_idInstitucion, profesor_id, subjefe_id
-                FROM Brigada WHERE idBrigada = %s
+                FROM brigada WHERE idBrigada = %s
                 """,
                 (id_brigada,),
             )
@@ -138,13 +138,13 @@ def obtener_brigada(id_brigada: int):
                     """
                     SELECT idBrigada, nombre_brigada, area_accion, descripcion, coordinador, color_identificador,
                         Institucion_Educativa_idInstitucion
-                    FROM Brigada WHERE idBrigada = %s
+                    FROM brigada WHERE idBrigada = %s
                     """,
                     (id_brigada,),
                 )
             except Exception:
                 cursor.execute(
-                    "SELECT idBrigada, nombre_brigada, area_accion, Institucion_Educativa_idInstitucion FROM Brigada WHERE idBrigada = %s",
+                    "SELECT idBrigada, nombre_brigada, area_accion, Institucion_Educativa_idInstitucion FROM brigada WHERE idBrigada = %s",
                     (id_brigada,),
                 )
         row = cursor.fetchone()
@@ -168,14 +168,14 @@ def actualizar_brigada(id_brigada: int, nombre: str, area_accion: str = None, de
         try:
             cursor.execute(
                 """
-                UPDATE Brigada SET nombre_brigada = %s, area_accion = %s, descripcion = %s, coordinador = %s, color_identificador = %s
+                UPDATE brigada SET nombre_brigada = %s, area_accion = %s, descripcion = %s, coordinador = %s, color_identificador = %s
                 WHERE idBrigada = %s
                 """,
                 (nombre, area, descripcion or None, coordinador or None, color_identificador or None, id_brigada),
             )
         except Exception:
             cursor.execute(
-                "UPDATE Brigada SET nombre_brigada = %s, area_accion = %s WHERE idBrigada = %s",
+                "UPDATE brigada SET nombre_brigada = %s, area_accion = %s WHERE idBrigada = %s",
                 (nombre, area, id_brigada),
             )
         conn.commit()
@@ -191,11 +191,11 @@ def eliminar_brigada(id_brigada: int) -> str | None:
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM Usuario WHERE Brigada_idBrigada = %s", (id_brigada,))
+        cursor.execute("SELECT COUNT(*) FROM usuario WHERE Brigada_idBrigada = %s", (id_brigada,))
         (num,) = cursor.fetchone()
         if num and num > 0:
             return f"No se puede eliminar: la brigada tiene {num} usuario(s) asignado(s). Asigne o elimine los usuarios primero."
-        cursor.execute("DELETE FROM Brigada WHERE idBrigada = %s", (id_brigada,))
+        cursor.execute("DELETE FROM brigada WHERE idBrigada = %s", (id_brigada,))
         conn.commit()
         return None
     except Exception as e:
@@ -226,9 +226,9 @@ def listar_brigadas_para_profesor(profesor_id: int, institucion_id: int, tipo_br
                    b.descripcion, b.coordinador, b.color_identificador, b.profesor_id,
                    COUNT(u.idUsuario) AS num_miembros,
                    p.nombre AS profesor_nombre, p.apellido AS profesor_apellido
-            FROM Brigada b
-            LEFT JOIN Usuario u ON u.Brigada_idBrigada = b.idBrigada
-            LEFT JOIN Usuario p ON p.idUsuario = b.profesor_id
+            FROM brigada b
+            LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
+            LEFT JOIN usuario p ON p.idUsuario = b.profesor_id
             WHERE b.Institucion_Educativa_idInstitucion = %s
               AND b.profesor_id IS NOT NULL
               {filtro_tipo}

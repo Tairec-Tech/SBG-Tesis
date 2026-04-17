@@ -15,8 +15,10 @@ import flet as ft
 from util_log import log
 
 log("--- App SBE iniciando ---")
-sys.stdout.flush()
-sys.stderr.flush()
+if sys.stdout:
+    sys.stdout.flush()
+if sys.stderr:
+    sys.stderr.flush()
 
 from theme import (
     TEMA_CLARO,
@@ -35,8 +37,13 @@ from screens import screen_dashboard, screen_brigade_select
 from components import build_sidebar
 
 TRANSITION_TEXT = "#FFFFFF"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGOS_DIR = os.path.join(BASE_DIR, "uploads", "logos")
+if getattr(sys, 'frozen', False):
+    # Si la app está empaquetada como .exe, buscar junto al ejecutable
+    EXE_DIR = os.path.dirname(sys.executable)
+else:
+    EXE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+LOGOS_DIR = os.path.join(EXE_DIR, "uploads", "logos")
 
 ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 
@@ -44,7 +51,7 @@ ABREV_ROL = {"Directivo": "Dir.", "Coordinador": "Coord.", "Profesor": "Prof."}
 async def main(page: ft.Page):
     log("Ventana principal abierta")
     page.title = "Sistema de Brigadas Escolares"
-    page.window.icon = os.path.join(LOGOS_DIR, "SBE.ico")
+    page.window.icon = "SBE.ico"
     # Iniciar con paleta neutra para la intro y login
     aplicar_paleta_neutra(page)
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -129,7 +136,7 @@ async def main(page: ft.Page):
     # ----- Estado de la app -----
     content_area = ft.Container(expand=True, bgcolor=COLOR_FONDO_VERDE)
     vista_actual = ["Panel Principal"]
-    content_area.content = screen_dashboard.build(page)
+    content_area.content = ft.Container()
 
     sidebar_container = ft.Container()
     vista_principal = ft.Container(expand=True)
@@ -243,6 +250,10 @@ async def main(page: ft.Page):
         if getattr(page, "data", None) and isinstance(page.data, dict):
             page.data.pop("usuario_actual", None)
             page.data.pop("brigada_activa", None)
+            # Limpiar caché del dashboard para que no herede el próximo inicio de sesión
+            claves_a_eliminar = [k for k in page.data.keys() if k.startswith("_cache_") or k.startswith("_dashboard_")]
+            for k in claves_a_eliminar:
+                page.data.pop(k, None)
         aplicar_paleta_neutra(page)
         contenedor_principal.content = build_login_view()
         page.update()
@@ -340,10 +351,9 @@ async def main(page: ft.Page):
     page.add(stack_principal)
     dispersar_bloques()
     page.update()
-    log("Ventana mostrada; cargando sidebar en segundo plano...")
-    page.run_task(refresh_sidebar)
+    log("Ventana mostrada; animación en progreso...")
     page.run_task(animacion_inicio_automatica)
 
 
 if __name__ == "__main__":
-    ft.run(main)
+    ft.run(main, assets_dir="assets")

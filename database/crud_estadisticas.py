@@ -17,61 +17,45 @@ def get_kpis_estadisticas(tipo_brigada=None):
 
     try:
         if tipo_brigada:
-            # 1. Voluntariado Activo
-            rows, _ = ejecutar("SELECT COUNT(*) FROM usuario u JOIN brigada b ON u.Brigada_idBrigada = b.idBrigada WHERE u.rol = 'Brigadista' AND b.tipo_brigada = %s", (tipo_brigada,))
-            kpis["voluntariado_activo"] = rows[0][0] if rows else 0
-
-            # 2. Horas Invertidas
-            sql_horas = """
-                SELECT SUM(TIMESTAMPDIFF(HOUR, a.fecha_inicio, a.fecha_fin)) 
-                FROM actividad a
-                JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
-                WHERE a.estado = 'Completada' AND a.fecha_inicio IS NOT NULL AND a.fecha_fin IS NOT NULL
-                AND b.tipo_brigada = %s
+            sql = """
+                SELECT 
+                    (SELECT COUNT(*) FROM usuario u JOIN brigada b ON u.Brigada_idBrigada = b.idBrigada WHERE u.rol = 'Brigadista' AND b.tipo_brigada = %(tb)s) as voluntariado_activo,
+                    (SELECT SUM(TIMESTAMPDIFF(HOUR, a.fecha_inicio, a.fecha_fin)) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE a.estado = 'Completada' AND a.fecha_inicio IS NOT NULL AND a.fecha_fin IS NOT NULL AND b.tipo_brigada = %(tb)s) as horas_invertidas,
+                    (SELECT COUNT(*) FROM brigada WHERE tipo_brigada = %(tb)s) as total_brigadas,
+                    (SELECT COUNT(DISTINCT a.Brigada_idBrigada) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %(tb)s) as brigadas_activas,
+                    (SELECT COUNT(*) FROM reporte_de_impacto i JOIN actividad a ON i.Actividad_idActividad = a.idActividad JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %(tb)s) as impacto_documentado,
+                    (SELECT COUNT(*) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %(tb)s) as total_actividades,
+                    (SELECT COUNT(*) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE a.estado = 'Completada' AND b.tipo_brigada = %(tb)s) as completadas
             """
-            rows, _ = ejecutar(sql_horas, (tipo_brigada,))
-            kpis["horas_invertidas"] = int(rows[0][0]) if rows and rows[0][0] else 0
-
-            # 3. Despliegue Operativo
-            rows_total, _ = ejecutar("SELECT COUNT(*) FROM brigada WHERE tipo_brigada = %s", (tipo_brigada,))
-            total_brigadas = rows_total[0][0] if rows_total else 0
-            rows_activas, _ = ejecutar("SELECT COUNT(DISTINCT a.Brigada_idBrigada) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s", (tipo_brigada,))
-            brigadas_activas = rows_activas[0][0] if rows_activas else 0
-            if total_brigadas > 0:
-                kpis["despliegue_operativo"] = round((brigadas_activas / total_brigadas) * 100)
-
-            # 4. Impacto Documentado
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_de_impacto i JOIN actividad a ON i.Actividad_idActividad = a.idActividad JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s", (tipo_brigada,))
-            kpis["impacto_documentado"] = rows[0][0] if rows else 0
-
-            # 5. Tasa de Efectividad
-            rows_total_act, _ = ejecutar("SELECT COUNT(*) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s", (tipo_brigada,))
-            total_actividades = rows_total_act[0][0] if rows_total_act else 0
-            rows_completadas, _ = ejecutar("SELECT COUNT(*) FROM actividad a JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada WHERE a.estado = 'Completada' AND b.tipo_brigada = %s", (tipo_brigada,))
-            completadas = rows_completadas[0][0] if rows_completadas else 0
-            if total_actividades > 0:
-                kpis["tasa_efectividad"] = round((completadas / total_actividades) * 100)
+            params = {"tb": tipo_brigada}
         else:
-            rows, _ = ejecutar("SELECT COUNT(*) FROM usuario WHERE rol = 'Brigadista'")
-            kpis["voluntariado_activo"] = rows[0][0] if rows else 0
-            sql_horas = """
-                SELECT SUM(TIMESTAMPDIFF(HOUR, fecha_inicio, fecha_fin)) 
-                FROM actividad WHERE estado = 'Completada' AND fecha_inicio IS NOT NULL AND fecha_fin IS NOT NULL
+            sql = """
+                SELECT 
+                    (SELECT COUNT(*) FROM usuario WHERE rol = 'Brigadista') as voluntariado_activo,
+                    (SELECT SUM(TIMESTAMPDIFF(HOUR, fecha_inicio, fecha_fin)) FROM actividad WHERE estado = 'Completada' AND fecha_inicio IS NOT NULL AND fecha_fin IS NOT NULL) as horas_invertidas,
+                    (SELECT COUNT(*) FROM brigada) as total_brigadas,
+                    (SELECT COUNT(DISTINCT Brigada_idBrigada) FROM actividad) as brigadas_activas,
+                    (SELECT COUNT(*) FROM reporte_de_impacto) as impacto_documentado,
+                    (SELECT COUNT(*) FROM actividad) as total_actividades,
+                    (SELECT COUNT(*) FROM actividad WHERE estado = 'Completada') as completadas
             """
-            rows, _ = ejecutar(sql_horas)
-            kpis["horas_invertidas"] = int(rows[0][0]) if rows and rows[0][0] else 0
-            rows_total, _ = ejecutar("SELECT COUNT(*) FROM brigada")
-            total_brigadas = rows_total[0][0] if rows_total else 0
-            rows_activas, _ = ejecutar("SELECT COUNT(DISTINCT Brigada_idBrigada) FROM actividad")
-            brigadas_activas = rows_activas[0][0] if rows_activas else 0
+            params = None
+
+        rows, _ = ejecutar(sql, params)
+        if rows:
+            r = rows[0]
+            kpis["voluntariado_activo"] = r[0] if r[0] else 0
+            kpis["horas_invertidas"] = int(r[1]) if r[1] else 0
+            
+            total_brigadas = r[2] if r[2] else 0
+            brigadas_activas = r[3] if r[3] else 0
             if total_brigadas > 0:
                 kpis["despliegue_operativo"] = round((brigadas_activas / total_brigadas) * 100)
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_de_impacto")
-            kpis["impacto_documentado"] = rows[0][0] if rows else 0
-            rows_total_act, _ = ejecutar("SELECT COUNT(*) FROM actividad")
-            total_actividades = rows_total_act[0][0] if rows_total_act else 0
-            rows_completadas, _ = ejecutar("SELECT COUNT(*) FROM actividad WHERE estado = 'Completada'")
-            completadas = rows_completadas[0][0] if rows_completadas else 0
+                
+            kpis["impacto_documentado"] = r[4] if r[4] else 0
+            
+            total_actividades = r[5] if r[5] else 0
+            completadas = r[6] if r[6] else 0
             if total_actividades > 0:
                 kpis["tasa_efectividad"] = round((completadas / total_actividades) * 100)
 
