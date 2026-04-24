@@ -54,15 +54,20 @@ def crear_turno(brigada_id: int, fecha: str, hora_inicio: str, hora_fin: str,
         return None
 
 
-def listar_turnos(brigada_id: int | None = None, tipo_brigada=None):
-    """Lista turnos, opcionalmente filtrados por brigada_id y/o tipo_brigada."""
+def listar_turnos(brigada_id: int | None = None, tipo_brigada=None, brigada_rol_id=None):
+    """Lista turnos, opcionalmente filtrados por brigada_id, tipo_brigada o brigada_rol_id."""
     _asegurar_tabla_turno()
     conditions = []
     params = []
-    if brigada_id:
+    
+    if brigada_rol_id is not None:
+        conditions.append("t.Brigada_idBrigada = %s")
+        params.append(brigada_rol_id)
+    elif brigada_id:
         conditions.append("t.Brigada_idBrigada = %s")
         params.append(brigada_id)
-    if tipo_brigada:
+        
+    if tipo_brigada and brigada_rol_id is None:
         conditions.append("b.tipo_brigada = %s")
         params.append(tipo_brigada)
     where = ""
@@ -98,7 +103,7 @@ def listar_turnos(brigada_id: int | None = None, tipo_brigada=None):
     return turnos
 
 
-def get_turno_stats(tipo_brigada=None):
+def get_turno_stats(tipo_brigada=None, brigada_rol_id=None):
     """Devuelve un dict con KPIs para la pantalla de turnos."""
     _asegurar_tabla_turno()
     stats = {
@@ -106,40 +111,44 @@ def get_turno_stats(tipo_brigada=None):
         "brigadistas_asignados": 0,
         "dias_con_turnos": 0,
     }
+    
+    where_b = ""
+    params = []
+    if brigada_rol_id is not None:
+        where_b = "WHERE b.idBrigada = %s"
+        params = [brigada_rol_id]
+    elif tipo_brigada:
+        where_b = "WHERE b.tipo_brigada = %s"
+        params = [tipo_brigada]
+        
     try:
-        if tipo_brigada:
-            rows, _ = ejecutar("SELECT COUNT(*) FROM turno t JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s", (tipo_brigada,))
-            stats["total_turnos"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("""
-                SELECT COUNT(DISTINCT u.idUsuario)
-                FROM usuario u
-                JOIN turno t ON u.Brigada_idBrigada = t.Brigada_idBrigada
-                JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada
-                WHERE b.tipo_brigada = %s
-            """, (tipo_brigada,))
-            stats["brigadistas_asignados"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("SELECT COUNT(DISTINCT t.fecha) FROM turno t JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s", (tipo_brigada,))
-            stats["dias_con_turnos"] = rows[0][0] if rows else 0
-        else:
-            rows, _ = ejecutar("SELECT COUNT(*) FROM turno")
-            stats["total_turnos"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("""
-                SELECT COUNT(DISTINCT u.idUsuario)
-                FROM usuario u
-                JOIN turno t ON u.Brigada_idBrigada = t.Brigada_idBrigada
-            """)
-            stats["brigadistas_asignados"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("SELECT COUNT(DISTINCT fecha) FROM turno")
-            stats["dias_con_turnos"] = rows[0][0] if rows else 0
+        rows, _ = ejecutar(f"SELECT COUNT(*) FROM turno t JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada {where_b}", tuple(params) if params else None)
+        stats["total_turnos"] = rows[0][0] if rows else 0
+        
+        rows, _ = ejecutar(f"""
+            SELECT COUNT(DISTINCT u.idUsuario)
+            FROM usuario u
+            JOIN turno t ON u.Brigada_idBrigada = t.Brigada_idBrigada
+            JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada
+            {where_b}
+        """, tuple(params) if params else None)
+        stats["brigadistas_asignados"] = rows[0][0] if rows else 0
+        
+        rows, _ = ejecutar(f"SELECT COUNT(DISTINCT t.fecha) FROM turno t JOIN brigada b ON t.Brigada_idBrigada = b.idBrigada {where_b}", tuple(params) if params else None)
+        stats["dias_con_turnos"] = rows[0][0] if rows else 0
+        
     except Exception as e:
         print(f"Error stats turno: {e}")
     return stats
 
 
-def eliminar_turno(turno_id: int) -> bool:
+def eliminar_turno(turno_id: int, brigada_rol_id: int | None = None) -> bool:
     """Elimina un turno por ID."""
     try:
-        ejecutar("DELETE FROM turno WHERE idTurno = %s", (turno_id,), commit=True)
+        if brigada_rol_id is not None:
+            ejecutar("DELETE FROM turno WHERE idTurno = %s AND Brigada_idBrigada = %s", (turno_id, brigada_rol_id), commit=True)
+        else:
+            ejecutar("DELETE FROM turno WHERE idTurno = %s", (turno_id,), commit=True)
         return True
     except Exception as e:
         print(f"Error eliminando turno: {e}")
@@ -147,16 +156,27 @@ def eliminar_turno(turno_id: int) -> bool:
 
 
 def actualizar_turno(turno_id: int, fecha: str, hora_inicio: str, hora_fin: str,
-                     ubicacion: str = "", notas: str = "", estado: str = "Programado") -> bool:
+                     ubicacion: str = "", notas: str = "", estado: str = "Programado", brigada_rol_id: int | None = None) -> bool:
     """Actualiza un turno existente."""
-    sql = """
-    UPDATE turno
-    SET fecha = %s, hora_inicio = %s, hora_fin = %s,
-        ubicacion = %s, notas = %s, estado = %s
-    WHERE idTurno = %s
-    """
+    if brigada_rol_id is not None:
+        sql = """
+        UPDATE turno
+        SET fecha = %s, hora_inicio = %s, hora_fin = %s,
+            ubicacion = %s, notas = %s, estado = %s
+        WHERE idTurno = %s AND Brigada_idBrigada = %s
+        """
+        params = (fecha, hora_inicio, hora_fin, ubicacion, notas, estado, turno_id, brigada_rol_id)
+    else:
+        sql = """
+        UPDATE turno
+        SET fecha = %s, hora_inicio = %s, hora_fin = %s,
+            ubicacion = %s, notas = %s, estado = %s
+        WHERE idTurno = %s
+        """
+        params = (fecha, hora_inicio, hora_fin, ubicacion, notas, estado, turno_id)
+        
     try:
-        afectadas = ejecutar_modificar(sql, (fecha, hora_inicio, hora_fin, ubicacion, notas, estado, turno_id))
+        afectadas = ejecutar_modificar(sql, params)
         return afectadas > 0
     except Exception as e:
         print(f"Error actualizando turno: {e}")

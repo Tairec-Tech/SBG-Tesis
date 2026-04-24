@@ -43,21 +43,63 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
 
     sel = vista_actual[0]
 
+    # Usuario activo (desde login) — se guarda como JSON string
+    prefs = page.client_storage if hasattr(page, "client_storage") else ft.SharedPreferences()
+    try:
+        raw = await prefs.get_async("usuario_actual") if hasattr(prefs, "get_async") else await prefs.get("usuario_actual")
+    except Exception:
+        try:
+            raw = prefs.get("usuario_actual")
+        except:
+            raw = None
+
+    if isinstance(raw, str):
+        try:
+            usuario_data = json.loads(raw) or {}
+        except (json.JSONDecodeError, TypeError):
+            usuario_data = {}
+    else:
+        usuario_data = raw if isinstance(raw, dict) else {}
+
+    nombre_display = f"{usuario_data.get('nombre', '')} {usuario_data.get('apellido', '')}".strip() or usuario_data.get("email", "Usuario")
+    rol_display = usuario_data.get("rol", "Directivo")
+    es_admin = str(rol_display).lower() in ["administrador", "admin", "directivo"]
+
     import importlib
 
-    items = [
-        ("Panel Principal", ft.Icons.DASHBOARD_OUTLINED, "screen_dashboard"),
-        ("Gestión de Brigadas", ft.Icons.SHIELD_OUTLINED, "screen_brigades"),
-        ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, "screen_activities"),
-        ("Brigadistas", ft.Icons.PEOPLE_OUTLINED, "screen_brigadistas"),
-        ("Turnos y Horarios", ft.Icons.CALENDAR_MONTH_OUTLINED, "screen_shifts"),
-        ("Reportes de Impacto", ft.Icons.PUBLIC, "screen_reports_impact"),
-        ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, "screen_reports"),
-        ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, "screen_reports_activities"),
-        ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, "screen_statistics"),
-        ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, "screen_content"),
-        ("Utilidades", ft.Icons.BUILD_OUTLINED, "screen_utilidades"),
-    ]
+    if es_admin:
+        items = [
+            ("Panel Principal", ft.Icons.DASHBOARD_OUTLINED, "screen_dashboard"),
+            ("Planificación de Brigadas", ft.Icons.SHIELD_OUTLINED, "screen_brigades"),
+            ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, "screen_activities"),
+            ("Brigadistas", ft.Icons.PEOPLE_OUTLINED, "screen_brigadistas"),
+            ("Calendario de Brigada", ft.Icons.CALENDAR_MONTH_OUTLINED, "screen_shifts"),
+            ("Reportes de Impacto", ft.Icons.PUBLIC, "screen_reports_impact"),
+            ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, "screen_reports"),
+            ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, "screen_reports_activities"),
+            ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, "screen_statistics"),
+            ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, "screen_content"),
+            ("Utilidades", ft.Icons.BUILD_OUTLINED, "screen_utilidades"),
+        ]
+    else:
+        # Responsable de Brigada
+        tiene_brigada = usuario_data.get("Brigada_idBrigada") is not None
+        if tiene_brigada:
+            items = [
+                ("Mi Brigada", ft.Icons.SHIELD_OUTLINED, "screen_brigades"),
+                ("Actividades", ft.Icons.LOCAL_ACTIVITY_OUTLINED, "screen_activities"),
+                ("Calendario de Brigada", ft.Icons.CALENDAR_MONTH_OUTLINED, "screen_shifts"),
+                ("Reportes de Impacto", ft.Icons.PUBLIC, "screen_reports_impact"),
+                ("Reportes de Incidentes", ft.Icons.ASSIGNMENT_OUTLINED, "screen_reports"),
+                ("Reportes de Actividades", ft.Icons.EVENT_NOTE_OUTLINED, "screen_reports_activities"),
+                ("Estadísticas", ft.Icons.BAR_CHART_OUTLINED, "screen_statistics"),
+                ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, "screen_content"),
+            ]
+        else:
+            items = [
+                ("Mi Brigada", ft.Icons.SHIELD_OUTLINED, "screen_brigades"),
+                ("Contenido Educativo", ft.Icons.MENU_BOOK_OUTLINED, "screen_content"),
+            ]
 
     nav_items = []
     for label, icon, builder in items:
@@ -129,18 +171,7 @@ async def build_sidebar(page: ft.Page, contenido_area: ft.Container, vista_actua
         padding=ft.Padding.symmetric(horizontal=20, vertical=12),
     )
 
-    # Usuario activo (desde login) — se guarda como JSON string
-    prefs = ft.SharedPreferences()
-    raw = await prefs.get("usuario_actual")
-    if isinstance(raw, str):
-        try:
-            usuario_data = json.loads(raw) or {}
-        except (json.JSONDecodeError, TypeError):
-            usuario_data = {}
-    else:
-        usuario_data = raw if isinstance(raw, dict) else {}
-    nombre_display = f"{usuario_data.get('nombre', '')} {usuario_data.get('apellido', '')}".strip() or usuario_data.get("email", "Usuario")
-    rol_display = usuario_data.get("rol", "Directivo")
+    # prefs y usuario_data ya calculados arriba
     usuario_card = ft.Container(
         content=ft.Column(
             [

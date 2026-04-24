@@ -251,6 +251,22 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
     # 1. Obtener tipo de brigada y cfg sincrónicamente
     _tb = (page.data or {}).get("brigada_activa")
     cfg = _get_config(_tb)
+    
+    usuario = {}
+    try:
+        import json
+        if getattr(page, "data", None) and isinstance(page.data.get("usuario_actual"), dict):
+            usuario = page.data["usuario_actual"]
+        else:
+            raw = page.client_storage.get("usuario_actual")
+            if raw:
+                usuario = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        pass
+        
+    from database.crud_usuario import es_admin
+    es_admin_usr = es_admin(usuario.get("rol", ""))
+    brigada_rol_id = usuario.get("Brigada_idBrigada") if not es_admin_usr else None
 
     ck_kpis = f"_cache_stats_kpis_{_tb}"
     ck_bar  = f"_cache_stats_bar_{_tb}"
@@ -304,10 +320,10 @@ def _build_con_graficos(page: ft.Page) -> ft.Control:
 
         try:
             import asyncio
-            kpis = await asyncio.to_thread(crud_est.get_kpis_estadisticas, _tb)
-            act_por_mes = await asyncio.to_thread(crud_est.get_actividades_por_mes, _tb)
-            reportes_tendencia = await asyncio.to_thread(crud_est.get_tendencia_reportes_por_mes, _tb)
-            estados = await asyncio.to_thread(crud_est.get_distribucion_estados_actividades, _tb)
+            kpis = await asyncio.to_thread(crud_est.get_kpis_estadisticas, _tb, brigada_rol_id)
+            act_por_mes = await asyncio.to_thread(crud_est.get_actividades_por_mes, _tb, brigada_rol_id)
+            reportes_tendencia = await asyncio.to_thread(crud_est.get_tendencia_reportes_por_mes, _tb, brigada_rol_id)
+            estados = await asyncio.to_thread(crud_est.get_distribucion_estados_actividades, _tb, brigada_rol_id)
 
             page.data[ck_kpis] = kpis
             page.data[ck_bar] = act_por_mes

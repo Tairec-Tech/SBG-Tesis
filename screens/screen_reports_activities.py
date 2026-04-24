@@ -45,21 +45,14 @@ def _obtener_usuario_actual(page: ft.Page) -> dict:
 def build(page: ft.Page, **kwargs) -> ft.Control:
     from database import crud_reporte
 
-    usuario_actual = _obtener_usuario_actual(page)
-    usuario_id = usuario_actual.get("id") or usuario_actual.get("idUsuario") or 0
-    rol_actual = usuario_actual.get("rol", "")
+    usuario = _obtener_usuario_actual(page)
+    usuario_id = usuario.get("id") or usuario.get("idUsuario") or 0
+    puede_crear_reporte = _puede_crear_reportes(usuario.get("rol", ""))
+    brigada_rol_id = usuario.get("Brigada_idBrigada") if not es_admin(usuario.get("rol", "")) else None
 
-    puede_crear = _puede_crear_reportes(rol_actual)
     _tb = (page.data or {}).get("brigada_activa")
     file_picker = ft.FilePicker()
-
-    def cargar_datos():
-        nonlocal reportes
-        reportes = crud_reporte.listar_reportes_actividad(_tb)
-        reports_col.controls = _build_report_list()
-        page.update()
-
-    reportes = crud_reporte.listar_reportes_actividad(_tb)
+    page.overlay.append(file_picker)
 
     async def descargar_doc(reporte_data):
         default_name = f"Reporte_Actividad_ACT-{reporte_data.get('id', 'X')}.docx"
@@ -182,10 +175,17 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
             cards.append(card)
         return cards
 
+    def cargar_datos():
+        nonlocal reportes
+        reportes = crud_reporte.listar_reportes_actividad(_tb, brigada_rol_id)
+        reports_col.controls = _build_report_list()
+        page.update()
+
+    reportes = crud_reporte.listar_reportes_actividad(_tb, brigada_rol_id)
     reports_col.controls = _build_report_list()
 
     def _abrir_modal_nuevo(e):
-        if not puede_crear:
+        if not puede_crear_reporte:
             _mostrar_snack(page, "No tiene permisos para crear reportes de actividad.", ft.Colors.RED)
             return
         modal_nuevo_reporte_actividad(page=page, id_usuario_actual=usuario_id, on_success_callback=cargar_datos)

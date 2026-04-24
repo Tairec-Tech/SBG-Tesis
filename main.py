@@ -33,7 +33,7 @@ from theme import (
     COLOR_FONDO_GRADIENTE_INICIO,
 )
 from screens import screen_login, screen_register, screen_recovery
-from screens import screen_dashboard, screen_brigade_select
+from screens import screen_dashboard, screen_brigade_select, screen_brigades
 from components import build_sidebar
 
 TRANSITION_TEXT = "#FFFFFF"
@@ -267,14 +267,26 @@ async def main(page: ft.Page):
         page.update()
 
     def on_brigada_seleccionada(brigada_key: str):
-        """Usuario seleccionó una brigada → aplicar paleta → transición → dashboard."""
+        """Usuario seleccionó una brigada → aplicar paleta → transición → dashboard o su brigada."""
         if not isinstance(page.data, dict):
             page.data = {}
         page.data["brigada_activa"] = brigada_key
         aplicar_paleta(page, brigada_key)
+        
+        usuario_actual = page.data.get("usuario_actual", {})
+        rol_display = usuario_actual.get("rol", "Directivo")
+        es_admin = str(rol_display).lower() in ["administrador", "admin", "directivo"]
+
         # Reconstruir content area con el nuevo tema
         content_area.bgcolor = COLOR_FONDO_VERDE
-        content_area.content = screen_dashboard.build(page)
+        
+        if es_admin:
+            vista_actual[0] = "Panel Principal"
+            content_area.content = screen_dashboard.build(page)
+        else:
+            vista_actual[0] = "Mi Brigada"
+            content_area.content = screen_brigades.build(page, content_area=content_area)
+            
         vista_principal.content = ft.Row([sidebar_container, content_area], expand=True)
         page.run_task(refresh_sidebar)
         page.run_task(animar_entrada_dashboard)

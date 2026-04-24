@@ -950,9 +950,22 @@ def abrir_form_brigadista_registrar(page: ft.Page, on_success=None):
         color=COLOR_TEXTO,
         content_padding=_CAMPO_PADDING,
     )
+    import json
+    try:
+        user_raw = page.client_storage.get("usuario_actual")
+        usuario_actual = page.data.get("usuario_actual") if getattr(page, "data", None) and getattr(page.data, "get", None) else None
+        if not usuario_actual and user_raw:
+            usuario_actual = json.loads(user_raw) if isinstance(user_raw, str) else (user_raw or {})
+    except Exception:
+        usuario_actual = {}
+        
+    usuario_actual = usuario_actual or {}
+    rol_actual = usuario_actual.get("rol", "")
+    brigada_rol_id = usuario_actual.get("Brigada_idBrigada") if not es_admin(rol_actual) else None
+
     brigadas_opciones = []
     try:
-        for b in listar_brigadas((page.data or {}).get("brigada_activa")):
+        for b in listar_brigadas((page.data or {}).get("brigada_activa"), brigada_rol_id=brigada_rol_id):
             brigadas_opciones.append(ft.dropdown.Option(str(b["idBrigada"]), b["nombre_brigada"] or f"Brigada {b['idBrigada']}"))
     except Exception:
         pass
@@ -1077,9 +1090,22 @@ def abrir_form_brigadista_modificar(page: ft.Page, brigadista=None, on_success=N
         ],
         **_DROPDOWN_BASE,
     )
+    import json
+    try:
+        user_raw = page.client_storage.get("usuario_actual")
+        usuario_actual = page.data.get("usuario_actual") if getattr(page, "data", None) and getattr(page.data, "get", None) else None
+        if not usuario_actual and user_raw:
+            usuario_actual = json.loads(user_raw) if isinstance(user_raw, str) else (user_raw or {})
+    except Exception:
+        usuario_actual = {}
+        
+    usuario_actual = usuario_actual or {}
+    rol_actual = usuario_actual.get("rol", "")
+    brigada_rol_id = usuario_actual.get("Brigada_idBrigada") if not es_admin(rol_actual) else None
+
     brigadas_opciones = []
     try:
-        for b in listar_brigadas((page.data or {}).get("brigada_activa")):
+        for b in listar_brigadas((page.data or {}).get("brigada_activa"), brigada_rol_id=brigada_rol_id):
             brigadas_opciones.append(ft.dropdown.Option(str(b["idBrigada"]), b["nombre_brigada"] or f"Brigada {b['idBrigada']}"))
     except Exception:
         pass
@@ -1692,9 +1718,24 @@ def abrir_form_turno(page: ft.Page):
     """Formulario de nuevo turno con DatePicker y TimePicker nativos + conexión a BD."""
     import database.crud_turno as crud_turno
     from datetime import datetime, date, time
+    from database.crud_usuario import es_admin
+
+    # Obtener el usuario_actual
+    import json
+    try:
+        user_raw = page.client_storage.get("usuario_actual")
+        usuario_actual = page.data.get("usuario_actual") if getattr(page, "data", None) and getattr(page.data, "get", None) else None
+        if not usuario_actual and user_raw:
+            usuario_actual = json.loads(user_raw) if isinstance(user_raw, str) else (user_raw or {})
+    except Exception:
+        usuario_actual = {}
+        
+    usuario_actual = usuario_actual or {}
+    rol_actual = usuario_actual.get("rol", "")
+    brigada_rol_id = usuario_actual.get("Brigada_idBrigada") if not es_admin(rol_actual) else None
 
     # ── Dropdown de brigadas reales ──
-    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"))
+    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"), brigada_rol_id=brigada_rol_id)
     opciones_brigadas = [ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]) for bg in brigadas_bd]
 
     brigada = ft.Dropdown(
@@ -1953,9 +1994,23 @@ def abrir_form_turno(page: ft.Page):
 def abrir_form_nuevo_reporte(page: ft.Page):
     """Cada campo con su título visible."""
     import database.crud_reporte as crud_reporte
+    from database.crud_usuario import es_admin
+
+    import json
+    try:
+        user_raw = page.client_storage.get("usuario_actual")
+        usuario_actual = page.data.get("usuario_actual") if getattr(page, "data", None) and getattr(page.data, "get", None) else None
+        if not usuario_actual and user_raw:
+            usuario_actual = json.loads(user_raw) if isinstance(user_raw, str) else (user_raw or {})
+    except Exception:
+        usuario_actual = {}
+        
+    usuario_actual = usuario_actual or {}
+    rol_actual = usuario_actual.get("rol", "")
+    brigada_rol_id = usuario_actual.get("Brigada_idBrigada") if not es_admin(rol_actual) else None
     
     # Cargar brigadas reales
-    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"))
+    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"), brigada_rol_id=brigada_rol_id)
     opciones_brigadas = []
     for bg in brigadas_bd:
         opciones_brigadas.append(ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]))
@@ -2139,9 +2194,23 @@ def modal_nuevo_reporte_actividad(page: ft.Page, id_usuario_actual: int, on_succ
 
 def modal_nuevo_reporte_impacto(page: ft.Page, id_usuario_actual: int, on_success_callback=None):
     from database import crud_actividad, crud_reporte
+    from database.crud_usuario import es_admin
+    
+    import json
+    try:
+        user_raw = page.client_storage.get("usuario_actual")
+        usuario_actual = page.data.get("usuario_actual") if getattr(page, "data", None) and getattr(page.data, "get", None) else None
+        if not usuario_actual and user_raw:
+            usuario_actual = json.loads(user_raw) if isinstance(user_raw, str) else (user_raw or {})
+    except Exception:
+        usuario_actual = {}
+        
+    usuario_actual = usuario_actual or {}
+    rol_actual = usuario_actual.get("rol", "")
+    brigada_rol_id = usuario_actual.get("Brigada_idBrigada") if not es_admin(rol_actual) else None
     
     # Brigadas reales
-    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"))
+    brigadas_bd = listar_brigadas((page.data or {}).get("brigada_activa"), brigada_rol_id=brigada_rol_id)
     opciones_brigadas = [ft.dropdown.Option(str(bg["idBrigada"]), bg["nombre_brigada"]) for bg in brigadas_bd]
 
     brigada_dd = ft.Dropdown(

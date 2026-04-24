@@ -48,18 +48,19 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
     usuario_actual = _obtener_usuario_actual(page)
     usuario_id = usuario_actual.get("id") or usuario_actual.get("idUsuario") or 0
     rol_actual = usuario_actual.get("rol", "")
+    puede_crear_reporte = _puede_crear_reportes(rol_actual)
+    brigada_rol_id = usuario_actual.get("Brigada_idBrigada") if not es_admin(rol_actual) else None
 
-    puede_crear = _puede_crear_reportes(rol_actual)
     _tb = (page.data or {}).get("brigada_activa")
     file_picker = ft.FilePicker()
 
     def cargar_datos():
         nonlocal reportes
-        reportes = crud_reporte.listar_reportes_impacto(_tb)
+        reportes = crud_reporte.listar_reportes_impacto(_tb, brigada_rol_id)
         reports_col.controls = _build_report_list()
         page.update()
 
-    reportes = crud_reporte.listar_reportes_impacto(_tb)
+    reportes = crud_reporte.listar_reportes_impacto(_tb, brigada_rol_id)
 
     async def descargar_doc(reporte_data):
         default_name = f"Reporte_Impacto_IMP-{reporte_data.get('id', 'X')}.docx"
@@ -192,13 +193,13 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
     reports_col.controls = _build_report_list()
 
     def _abrir_modal_nuevo(e):
-        if not puede_crear:
+        if not puede_crear_reporte:
             _mostrar_snack(page, "No tiene permisos para crear análisis de impacto.", ft.Colors.RED)
             return
         modal_nuevo_reporte_impacto(page=page, id_usuario_actual=usuario_id, on_success_callback=cargar_datos)
 
     acciones = []
-    if puede_crear:
+    if puede_crear_reporte:
         acciones.append(boton_primario("Nuevo Análisis", ft.Icons.ADD_CHART_ROUNDED, on_click=_abrir_modal_nuevo))
 
     header_row = ft.Row(

@@ -145,14 +145,15 @@ def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
             content_area.content = build(page, content_area=content_area)
             page.update()
 
-    # Texto del header según rol
     if es_profesor(rol):
-        subtitulo = "Gestiona tus brigadas y visualiza las de otros profesores"
+        subtitulo = "Gestiona la planificación y actividades de tu brigada asignada"
+        titulo = "Mi Brigada"
     else:
         subtitulo = "Administra y organiza todas las brigadas de tu institución"
+        titulo = "Planificación de Brigadas"
     
     header = titulo_pagina(
-        "Gestión de Brigadas",
+        titulo,
         subtitulo,
         accion=boton_primario("Agregar Brigada", ft.Icons.ADD, on_click=on_nuevo) if puede_crear else None,
     )
@@ -175,6 +176,68 @@ def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
     )
 
 
+def _build_brigade_overview(page, brigada, usuario, refresh_callback):
+    """Genera la vista profunda y singular de la brigada del profesor."""
+    nombre = brigada.get("nombre_brigada") or "Mi Brigada"
+    desc = brigada.get("descripcion") or brigada.get("area_accion") or "Área de Acción General"
+    miembros = brigada.get("num_miembros", 0)
+    color_identificador = brigada.get("color_identificador") or COLOR_PRIMARIO
+    
+    def ir_a(vista):
+        def _(e):
+            # Simulamos click de navegacion local
+            from components import build_sidebar
+            # La forma mas util de navegar aca es invocar la vista en content_area pero eso requiere redibujar.
+            page.snack_bar = ft.SnackBar(ft.Text(f"Navegando a {vista}..."), bgcolor=COLOR_PRIMARIO)
+            page.snack_bar.open = True
+            page.update()
+        return _
+
+    return ft.Column([
+        # Cabecera hero
+        ft.Container(
+            content=ft.Column([
+                ft.Text(nombre, size=28, weight="bold", color="white"),
+                ft.Text(desc, size=15, color="white70"),
+            ]),
+            padding=32,
+            border_radius=14,
+            width=float("inf"),
+            bgcolor=color_identificador
+        ),
+        ft.Container(height=16),
+        # Accesos y stats
+        ft.Row([
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.PEOPLE, size=32, color=color_identificador),
+                    ft.Text("Miembros", weight="bold"),
+                    ft.Text(f"{miembros} Activos", size=18)
+                ]),
+                padding=24, bgcolor=COLOR_CARD, border_radius=14, border=ft.Border.all(1, COLOR_BORDE),
+                expand=True
+            ),
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.LOCAL_ACTIVITY, size=32, color=color_identificador),
+                    ft.Text("Actividades", weight="bold"),
+                    ft.Text("Ir al plan", color=COLOR_TEXTO_SEC)
+                ]),
+                padding=24, bgcolor=COLOR_CARD, border_radius=14, border=ft.Border.all(1, COLOR_BORDE),
+                expand=True, on_click=ir_a("Actividades"), ink=True
+            ),
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.CALENDAR_MONTH, size=32, color=color_identificador),
+                    ft.Text("Calendario", weight="bold"),
+                    ft.Text("Ver Horarios", color=COLOR_TEXTO_SEC)
+                ]),
+                padding=24, bgcolor=COLOR_CARD, border_radius=14, border=ft.Border.all(1, COLOR_BORDE),
+                expand=True, on_click=ir_a("Calendario"), ink=True
+            ),
+        ], spacing=20),
+    ], spacing=0)
+
 def _build_brigade_cards(page, refresh_callback=None, usuario=None):
     """Grid de tarjetas con las brigadas de la base de datos, filtradas por rol."""
     usuario = usuario or {}
@@ -188,25 +251,29 @@ def _build_brigade_cards(page, refresh_callback=None, usuario=None):
         elif es_profesor(rol) and user_id:
             institucion_id = usuario.get("institucion_id") or 1
             brigadas = listar_brigadas_para_profesor(user_id, institucion_id, _tb)
+            # Solo retener la brigada que *estrictamente* dirija para asegurar el overview
+            brigadas = [b for b in brigadas if b.get("profesor_id") == user_id]
         else:
             # Otros roles no ven brigadas en esta pantalla
             brigadas = []
     except Exception:
         brigadas = []
     
+    # ESTADO: SIN BRIGADA (Profesor) o SIN REGISTROS (Admin)
     if not brigadas:
         msg = "No hay brigadas registradas"
-        sub = "Los profesores pueden crear brigadas desde «Agregar Brigada»."
+        sub = "Los administradores pueden agregar brigadas desde «Agregar Brigada»."
         if es_profesor(rol):
-            msg = "Aún no tienes brigadas. ¡Crea tu primera brigada!"
-            sub = "Use «Agregar Brigada» para crear una."
+            msg = "Sin brigada asignada"
+            sub = "Por favor, solicite a la dirección que asigne una brigada a su perfil."
+            
         return card_principal(
             ft.Column(
                 [
                     ft.Icon(ft.Icons.SHIELD_OUTLINED, color=COLOR_TEXTO_SEC, size=48),
                     ft.Container(height=16),
                     ft.Text(msg, size=16, weight="bold", color=COLOR_TEXTO),
-                    ft.Text(sub, size=14, color=COLOR_TEXTO_SEC),
+                    ft.Text(sub, size=14, color=COLOR_TEXTO_SEC, text_align=ft.TextAlign.CENTER),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=0,
@@ -214,14 +281,16 @@ def _build_brigade_cards(page, refresh_callback=None, usuario=None):
             padding=48,
         )
     
+    # BIFURCACION OVERVIEW vs CATALOGO
+    if es_profesor(rol) and not es_admin(rol):
+        return _build_brigade_overview(page, brigadas[0], usuario, refresh_callback)
+    
     cards = []
     for b in brigadas:
-        # Determinar si el usuario puede editar/eliminar esta brigada
         es_propia = b.get("es_propia", False) or b.get("profesor_id") == user_id
         puede_editar = es_admin(rol) or es_propia
         puede_eliminar = es_admin(rol) or es_propia
         
-        # Líder: Prof. Nombre Abrev. (ej. Prof. Juan P.)
         pnom = (b.get("profesor_nombre") or "").strip()
         pap = (b.get("profesor_apellido") or "").strip()
         if pnom:

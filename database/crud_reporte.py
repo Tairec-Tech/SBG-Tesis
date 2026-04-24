@@ -86,27 +86,25 @@ def crear_reporte(titulo: str, descripcion: str, ubicacion: str, prioridad: str,
         print(f"Error creando reporte: {e}")
         return None
 
-def listar_reportes(tipo_brigada=None):
+def listar_reportes(tipo_brigada=None, brigada_rol_id=None):
     _asegurar_tabla_reporte()
-    if tipo_brigada:
-        sql = """
-        SELECT r.idReporte, r.titulo, r.descripcion, r.ubicacion, r.prioridad, r.estado, r.creado_en, 
-               b.nombre_brigada, b.color_identificador
-        FROM reporte_incidente r
-        JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada
-        WHERE b.tipo_brigada = %s
-        ORDER BY r.creado_en DESC
-        """
-        rows, _ = ejecutar(sql, (tipo_brigada,))
-    else:
-        sql = """
-        SELECT r.idReporte, r.titulo, r.descripcion, r.ubicacion, r.prioridad, r.estado, r.creado_en, 
-               b.nombre_brigada, b.color_identificador
-        FROM reporte_incidente r
-        JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada
-        ORDER BY r.creado_en DESC
-        """
-        rows, _ = ejecutar(sql)
+    sql = """
+    SELECT r.idReporte, r.titulo, r.descripcion, r.ubicacion, r.prioridad, r.estado, r.creado_en, 
+           b.nombre_brigada, b.color_identificador
+    FROM reporte_incidente r
+    JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada
+    WHERE 1=1
+    """
+    params = []
+    if brigada_rol_id is not None:
+        sql += " AND b.idBrigada = %s"
+        params.append(brigada_rol_id)
+    elif tipo_brigada:
+        sql += " AND b.tipo_brigada = %s"
+        params.append(tipo_brigada)
+        
+    sql += " ORDER BY r.creado_en DESC"
+    rows, _ = ejecutar(sql, tuple(params))
     reportes = []
     for r in rows:
         reportes.append({
@@ -131,28 +129,33 @@ def actualizar_estado(id_reporte: int, nuevo_estado: str) -> bool:
         print(f"Error actualizando estado del reporte: {e}")
         return False
 
-def get_reporte_stats(tipo_brigada=None):
+def get_reporte_stats(tipo_brigada=None, brigada_rol_id=None):
     _asegurar_tabla_reporte()
     stats = {
         "total": 0,
         "en_proceso": 0,
         "resueltos": 0
     }
+    
+    where_base = ""
+    params_base = []
+    
+    if brigada_rol_id is not None:
+        where_base = "WHERE b.idBrigada = %s"
+        params_base.append(brigada_rol_id)
+    elif tipo_brigada:
+        where_base = "WHERE b.tipo_brigada = %s"
+        params_base.append(tipo_brigada)
+        
     try:
-        if tipo_brigada:
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_incidente r JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s", (tipo_brigada,))
-            stats["total"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_incidente r JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s AND r.estado != 'Resuelto'", (tipo_brigada,))
-            stats["en_proceso"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_incidente r JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada WHERE b.tipo_brigada = %s AND r.estado = 'Resuelto'", (tipo_brigada,))
-            stats["resueltos"] = rows[0][0] if rows else 0
-        else:
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_incidente")
-            stats["total"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_incidente WHERE estado != 'Resuelto'")
-            stats["en_proceso"] = rows[0][0] if rows else 0
-            rows, _ = ejecutar("SELECT COUNT(*) FROM reporte_incidente WHERE estado = 'Resuelto'")
-            stats["resueltos"] = rows[0][0] if rows else 0
+        rows, _ = ejecutar(f"SELECT COUNT(*) FROM reporte_incidente r JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada {where_base}", tuple(params_base))
+        stats["total"] = rows[0][0] if rows else 0
+        
+        rows, _ = ejecutar(f"SELECT COUNT(*) FROM reporte_incidente r JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada {where_base} {'AND' if where_base else 'WHERE'} r.estado != 'Resuelto'", tuple(params_base))
+        stats["en_proceso"] = rows[0][0] if rows else 0
+        
+        rows, _ = ejecutar(f"SELECT COUNT(*) FROM reporte_incidente r JOIN brigada b ON r.Brigada_idBrigada = b.idBrigada {where_base} {'AND' if where_base else 'WHERE'} r.estado = 'Resuelto'", tuple(params_base))
+        stats["resueltos"] = rows[0][0] if rows else 0
     except Exception as e:
         print(f"Error stats reporte: {e}")
     return stats
@@ -161,44 +164,34 @@ def get_reporte_stats(tipo_brigada=None):
 # REPORTES DE ACTIVIDADES
 # ==========================================================
 
-def listar_reportes_actividad(tipo_brigada=None):
-    """Obtiene los reportes de actividades, filtrados por tipo_brigada."""
-    if tipo_brigada:
-        sql = """
-        SELECT 
-            r.idReporte_actividad, 
-            r.resumen, 
-            r.resultado, 
-            r.fecha_reporte,
-            a.titulo AS actividad_titulo, 
-            a.fecha_inicio AS actividad_fecha,
-            u.nombre, u.apellido,
-            r.participantes
-        FROM reporte_actividad r
-        LEFT JOIN actividad a ON r.Actividad_idActividad = a.idActividad
-        LEFT JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
-        LEFT JOIN usuario u ON r.Usuario_idUsuario = u.idUsuario
-        WHERE b.tipo_brigada = %s
-        ORDER BY r.fecha_reporte DESC
-        """
-        rows, _ = ejecutar(sql, (tipo_brigada,))
-    else:
-        sql = """
-        SELECT 
-            r.idReporte_actividad, 
-            r.resumen, 
-            r.resultado, 
-            r.fecha_reporte,
-            a.titulo AS actividad_titulo, 
-            a.fecha_inicio AS actividad_fecha,
-            u.nombre, u.apellido,
-            r.participantes
-        FROM reporte_actividad r
-        LEFT JOIN actividad a ON r.Actividad_idActividad = a.idActividad
-        LEFT JOIN usuario u ON r.Usuario_idUsuario = u.idUsuario
-        ORDER BY r.fecha_reporte DESC
-        """
-        rows, _ = ejecutar(sql)
+def listar_reportes_actividad(tipo_brigada=None, brigada_rol_id=None):
+    """Obtiene los reportes de actividades, filtrados por tipo_brigada o brigada_rol_id."""
+    sql = """
+    SELECT 
+        r.idReporte_actividad, 
+        r.resumen, 
+        r.resultado, 
+        r.fecha_reporte,
+        a.titulo AS actividad_titulo, 
+        a.fecha_inicio AS actividad_fecha,
+        u.nombre, u.apellido,
+        r.participantes
+    FROM reporte_actividad r
+    LEFT JOIN actividad a ON r.Actividad_idActividad = a.idActividad
+    LEFT JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
+    LEFT JOIN usuario u ON r.Usuario_idUsuario = u.idUsuario
+    WHERE 1=1
+    """
+    params = []
+    if brigada_rol_id is not None:
+        sql += " AND b.idBrigada = %s"
+        params.append(brigada_rol_id)
+    elif tipo_brigada:
+        sql += " AND b.tipo_brigada = %s"
+        params.append(tipo_brigada)
+        
+    sql += " ORDER BY r.fecha_reporte DESC"
+    rows, _ = ejecutar(sql, tuple(params))
     reportes = []
     for r in rows:
         reportes.append({
@@ -229,48 +222,36 @@ def crear_reporte_actividad(resumen: str, resultado: str, actividad_id: int, usu
 # REPORTES DE IMPACTO
 # ==========================================================
 
-def listar_reportes_impacto(tipo_brigada=None):
-    """Obtiene los reportes de impacto, filtrados por tipo_brigada."""
-    if tipo_brigada:
-        sql = """
-        SELECT 
-            i.idReporte_impacto, 
-            i.contenido, 
-            i.fecha_generacion,
-            a.titulo AS actividad_titulo,
-            u.nombre, u.apellido,
-            i.brigada,
-            i.area_evaluada,
-            i.indicador,
-            i.valor,
-            i.unidad
-        FROM reporte_de_impacto i
-        LEFT JOIN actividad a ON i.Actividad_idActividad = a.idActividad
-        LEFT JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
-        LEFT JOIN usuario u ON i.Usuario_idUsuario = u.idUsuario
-        WHERE b.tipo_brigada = %s
-        ORDER BY i.fecha_generacion DESC
-        """
-        rows, _ = ejecutar(sql, (tipo_brigada,))
-    else:
-        sql = """
-        SELECT 
-            i.idReporte_impacto, 
-            i.contenido, 
-            i.fecha_generacion,
-            a.titulo AS actividad_titulo,
-            u.nombre, u.apellido,
-            i.brigada,
-            i.area_evaluada,
-            i.indicador,
-            i.valor,
-            i.unidad
-        FROM reporte_de_impacto i
-        LEFT JOIN actividad a ON i.Actividad_idActividad = a.idActividad
-        LEFT JOIN usuario u ON i.Usuario_idUsuario = u.idUsuario
-        ORDER BY i.fecha_generacion DESC
-        """
-        rows, _ = ejecutar(sql)
+def listar_reportes_impacto(tipo_brigada=None, brigada_rol_id=None):
+    """Obtiene los reportes de impacto, filtrados por tipo_brigada o brigada_rol_id."""
+    sql = """
+    SELECT 
+        i.idReporte_impacto, 
+        i.contenido, 
+        i.fecha_generacion,
+        a.titulo AS actividad_titulo,
+        u.nombre, u.apellido,
+        i.brigada,
+        i.area_evaluada,
+        i.indicador,
+        i.valor,
+        i.unidad
+    FROM reporte_de_impacto i
+    LEFT JOIN actividad a ON i.Actividad_idActividad = a.idActividad
+    LEFT JOIN brigada b ON a.Brigada_idBrigada = b.idBrigada
+    LEFT JOIN usuario u ON i.Usuario_idUsuario = u.idUsuario
+    WHERE 1=1
+    """
+    params = []
+    if brigada_rol_id is not None:
+        sql += " AND b.idBrigada = %s"
+        params.append(brigada_rol_id)
+    elif tipo_brigada:
+        sql += " AND b.tipo_brigada = %s"
+        params.append(tipo_brigada)
+        
+    sql += " ORDER BY i.fecha_generacion DESC"
+    rows, _ = ejecutar(sql, tuple(params))
     reportes = []
     for r in rows:
         reportes.append({

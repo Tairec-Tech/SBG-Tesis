@@ -47,18 +47,26 @@ def insertar_brigada(nombre, descripcion, coordinador, color_identificador, inst
         conn.close()
 
 
-def listar_brigadas(tipo_brigada=None):
+def listar_brigadas(tipo_brigada=None, brigada_rol_id=None):
     """
-    Lista brigadas con conteo de miembros, filtradas por tipo_brigada si se indica.
+    Lista brigadas con conteo de miembros, filtradas por tipo_brigada si se indica o por brigada_rol_id.
     """
     conn = get_connection()
     try:
         cursor = conn.cursor(dictionary=True)
-        filtro = ""
-        params = ()
-        if tipo_brigada:
-            filtro = "WHERE b.tipo_brigada = %s"
-            params = (tipo_brigada,)
+        filtros = []
+        params = []
+        if brigada_rol_id is not None:
+            filtros.append("b.idBrigada = %s")
+            params.append(brigada_rol_id)
+        elif tipo_brigada:
+            filtros.append("b.tipo_brigada = %s")
+            params.append(tipo_brigada)
+            
+        filtro_str = ""
+        if filtros:
+            filtro_str = "WHERE " + " AND ".join(filtros)
+            
         try:
             cursor.execute(
                 f"""
@@ -69,7 +77,7 @@ def listar_brigadas(tipo_brigada=None):
                 FROM brigada b
                 LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
                 LEFT JOIN usuario p ON p.idUsuario = b.profesor_id
-                {filtro}
+                {filtro_str}
                 GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador,
                          b.profesor_id, p.nombre, p.apellido
                 ORDER BY b.nombre_brigada
@@ -85,7 +93,7 @@ def listar_brigadas(tipo_brigada=None):
                         COUNT(u.idUsuario) AS num_miembros
                     FROM brigada b
                     LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
-                    {filtro}
+                    {filtro_str}
                     GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, b.coordinador, b.color_identificador
                     ORDER BY b.nombre_brigada
                     """,
@@ -98,7 +106,7 @@ def listar_brigadas(tipo_brigada=None):
                         COUNT(u.idUsuario) AS num_miembros
                     FROM brigada b
                     LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
-                    {filtro}
+                    {filtro_str}
                     GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion
                     ORDER BY b.nombre_brigada
                     """,
@@ -230,14 +238,12 @@ def listar_brigadas_para_profesor(profesor_id: int, institucion_id: int, tipo_br
             LEFT JOIN usuario u ON u.Brigada_idBrigada = b.idBrigada
             LEFT JOIN usuario p ON p.idUsuario = b.profesor_id
             WHERE b.Institucion_Educativa_idInstitucion = %s
-              AND b.profesor_id IS NOT NULL
+              AND b.profesor_id = %s
               {filtro_tipo}
             GROUP BY b.idBrigada, b.nombre_brigada, b.area_accion, b.descripcion, 
                      b.coordinador, b.color_identificador, b.profesor_id,
                      p.nombre, p.apellido
-            ORDER BY 
-                CASE WHEN b.profesor_id = %s THEN 0 ELSE 1 END,
-                b.nombre_brigada
+            ORDER BY b.nombre_brigada
             """,
             tuple(params),
         )

@@ -43,6 +43,7 @@ def _mostrar_snack(page: ft.Page, mensaje: str, color: str):
 def build(page: ft.Page, **kwargs) -> ft.Control:
     usuario = _obtener_usuario_actual(page)
     puede_crear_reporte = _puede_crear_reportes(usuario.get("rol", ""))
+    brigada_rol_id = usuario.get("Brigada_idBrigada") if not es_admin(usuario.get("rol", "")) else None
 
     _tb = (page.data or {}).get("brigada_activa")
     file_picker = ft.FilePicker()
@@ -55,16 +56,16 @@ def build(page: ft.Page, **kwargs) -> ft.Control:
         abrir_form_nuevo_reporte(page)
 
     def _refresh(_=None):
-        stats = crud_reporte.get_reporte_stats(_tb)
-        reportes = crud_reporte.listar_reportes(_tb)
+        stats = crud_reporte.get_reporte_stats(_tb, brigada_rol_id)
+        reportes = crud_reporte.listar_reportes(_tb, brigada_rol_id)
         kpis_row.controls = _build_kpi_cards(stats)
         reports_col.controls = _build_report_list(page, reportes, file_picker, _refresh)
         page.update()
 
-    stats = crud_reporte.get_reporte_stats(_tb)
+    stats = crud_reporte.get_reporte_stats(_tb, brigada_rol_id)
     kpis_row = ft.Row(controls=_build_kpi_cards(stats), spacing=16)
 
-    reportes = crud_reporte.listar_reportes(_tb)
+    reportes = crud_reporte.listar_reportes(_tb, brigada_rol_id)
     reports_col = ft.Column(controls=_build_report_list(page, reportes, file_picker, _refresh), spacing=14)
 
     contenido = ft.Column(

@@ -1,4 +1,4 @@
-"""Turnos y Horarios — diseño premium con timeline y cards enriquecidas.
+"""Calendario de Brigada — diseño premium con timeline y cards enriquecidas.
 Incluye edición/eliminación condicional por permisos de profesor."""
 
 import flet as ft
@@ -37,8 +37,9 @@ def _obtener_usuario_actual(page: ft.Page) -> dict:
 #  Modal de edición de turno
 # ═══════════════════════════════════════════════════════════
 
-def _abrir_modal_editar_turno(page: ft.Page, turno: dict, on_success=None):
+def _abrir_modal_editar_turno(page: ft.Page, turno: dict, usuario: dict, on_success=None):
     """Modal para editar un turno existente con DatePicker y TimePicker nativos."""
+    brigada_rol_id = usuario.get("Brigada_idBrigada") if not es_admin(usuario.get("rol", "")) else None
     _MESES = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",
               7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
 
@@ -222,6 +223,7 @@ def _abrir_modal_editar_turno(page: ft.Page, turno: dict, on_success=None):
             ubicacion=(ubicacion_campo.value or "").strip(),
             notas=(notas_campo.value or "").strip(),
             estado=dd_estado.value,
+            brigada_rol_id=brigada_rol_id,
         )
 
         _limpiar_overlay()
@@ -265,12 +267,13 @@ def _abrir_modal_editar_turno(page: ft.Page, turno: dict, on_success=None):
 #  Modal de confirmación para eliminar turno
 # ═══════════════════════════════════════════════════════════
 
-def _abrir_modal_eliminar_turno(page: ft.Page, turno: dict, on_success=None):
+def _abrir_modal_eliminar_turno(page: ft.Page, turno: dict, usuario: dict, on_success=None):
+    brigada_rol_id = usuario.get("Brigada_idBrigada") if not es_admin(usuario.get("rol", "")) else None
     brigada = turno.get("brigada", "")
     fecha_str = str(turno.get("fecha", ""))
 
     def on_confirmar(_):
-        ok = crud_turno.eliminar_turno(turno["id"])
+        ok = crud_turno.eliminar_turno(turno["id"], brigada_rol_id=brigada_rol_id)
         _cerrar_dialogo(page)
         if ok:
             page.snack_bar = ft.SnackBar(ft.Text("Turno eliminado."), bgcolor="#22c55e")
@@ -309,6 +312,7 @@ def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
     usuario = _obtener_usuario_actual(page)
     rol = usuario.get("rol", "")
     user_id = usuario.get("id")
+    brigada_rol_id = usuario.get("Brigada_idBrigada") if not es_admin(rol) else None
 
     def on_nuevo_turno(_):
         from forms import abrir_form_turno
@@ -321,32 +325,81 @@ def build(page: ft.Page, content_area=None, **kwargs) -> ft.Control:
             content_area.content = build(page, content_area)
             page.update()
         else:
-            stats = crud_turno.get_turno_stats(_tb)
-            turnos = crud_turno.listar_turnos(tipo_brigada=_tb)
+            stats = crud_turno.get_turno_stats(_tb, brigada_rol_id)
             kpis_row.controls = _build_kpi_cards(stats)
-            schedule_col.controls = _build_turno_section(turnos, user_id, rol, _refresh)
+            schedule_col.controls = _build_merged_schedule(_tb, brigada_rol_id, user_id, rol, _refresh, _on_editar, _on_eliminar, page)
             page.update()
 
-    stats = crud_turno.get_turno_stats(_tb)
+    stats = crud_turno.get_turno_stats(_tb, brigada_rol_id)
     kpis_row = ft.Row(controls=_build_kpi_cards(stats), spacing=16)
 
-    turnos = crud_turno.listar_turnos(tipo_brigada=_tb)
-
     def _on_editar(turno):
-        _abrir_modal_editar_turno(page, turno, on_success=_refresh)
+        if turno.get("es_actividad"):
+            # Omitiremos editar actividades desde aquí en esta fase puramente de lectura de calendarios
+            page.snack_bar = ft.SnackBar(ft.Text("Edita la planificación desde la vista de Actividades."), bgcolor="#3b82f6")
+            page.snack_bar.open = True
+            page.update()
+        else:
+            _abrir_modal_editar_turno(page, turno, usuario, on_success=_refresh)
 
     def _on_eliminar(turno):
-        _abrir_modal_eliminar_turno(page, turno, on_success=_refresh)
+        if turno.get("es_actividad"):
+            pass
+        else:
+            _abrir_modal_eliminar_turno(page, turno, usuario, on_success=_refresh)
+
+    def _build_merged_schedule(_tb, b_id, uid, ro, _ref, _oe, _od, p):
+        import database.crud_actividad as crud_act
+        import util_json_plan
+        from datetime import datetime
+        turnos = crud_turno.listar_turnos(tipo_brigada=_tb, brigada_rol_id=b_id)
+        actividades = crud_act.listar_actividades(tipo_brigada=_tb, brigada_rol_id=b_id)
+        
+        merged = list(turnos)
+        for act in actividades:
+            try:
+                # Intenta convertir fechas de actividad
+                f = act.get("fecha_inicio")
+                if isinstance(f, str):
+                    f = datetime.strptime(f, "%Y-%m-%d").date()
+                
+                # Extraer JSON de la actividad
+                plan = util_json_plan.deserializar_plan(act.get("descripcion", ""))
+                origen = plan.get("origen_actividad", "Actividad")
+                efemeride = plan.get("efemeride", "")
+                momento = plan.get("momento_escolar", "")
+
+                label_origen = f"{origen}: {efemeride}" if efemeride else origen
+                notas_act = f"{momento} - {plan.get('objetivo_plan', '')}"
+                
+                item_virtual = {
+                    "id": act["id"],
+                    "es_actividad": True,
+                    "fecha": f,
+                    "hora_inicio": "00:00:00", # Todo el día
+                    "hora_fin": "23:59:59",
+                    "brigada": act.get("brigada", "General"),
+                    "estado": act.get("estado", "Planificada"),
+                    "ubicacion": label_origen,
+                    "notas": notas_act,
+                    "color": "#8b5cf6", # Morado distintivo para actividades en el calendario
+                    "profesor_id": act.get("creador_id")
+                }
+                merged.append(item_virtual)
+            except Exception as e:
+                print(f"Error procesando actividad para calendario: {e}")
+                
+        return _build_turno_section(merged, uid, ro, _ref, _oe, _od, p)
 
     schedule_col = ft.Column(
-        controls=_build_turno_section(turnos, user_id, rol, _refresh, _on_editar, _on_eliminar, page),
+        controls=_build_merged_schedule(_tb, brigada_rol_id, user_id, rol, _refresh, _on_editar, _on_eliminar, page),
         spacing=0,
     )
 
     contenido = ft.Column(
         [
             titulo_pagina(
-                "Turnos y Horarios",
+                "Calendario de Brigada",
                 "Organiza y asigna los turnos de las brigadas",
                 accion=boton_primario("Nuevo Turno", ft.Icons.ADD, on_click=on_nuevo_turno),
             ),

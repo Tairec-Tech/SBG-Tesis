@@ -563,6 +563,55 @@ BRIGADAS = {
         "hex_fondo": HEX_CONVIVENCIA_FONDO,
         "icono": "HANDSHAKE",
     },
+    "auxilios": {
+        "nombre": "Brigada de Primeros Auxilios",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#eab308", # Amarillo
+        "icono": "MEDICAL_SERVICES",
+    },
+    "educacion_fisica": {
+        "nombre": "Brigada de Educación Física",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#3b82f6", # Azul
+        "icono": "SPORTS_BASKETBALL",
+    },
+    "conuco": {
+        "nombre": "Brigada Mi Conuco Escolar Carlos Lanz",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#84cc16", # Verde Claro / Oliva
+        "icono": "AGRICULTURE",
+    },
+    "patrimonio": {
+        "nombre": "Brigada de Patrimonio y Turismo",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#ec4899", # Rosado
+        "icono": "MUSEUM",
+    },
+    "artes": {
+        "nombre": "Brigada de Artes Visuales",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#a855f7", # Lila
+        "icono": "PALETTE",
+    },
+    "patriotica": {
+        "nombre": "Brigada Juventud Patriótica",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#9ca3af", # Gris
+        "icono": "FLAG",
+    },
+    "ddhh": {
+        "nombre": "Brigada de Derechos Humanos",
+        "claro": TEMA_NEUTRA_CLARO,
+        "oscuro": TEMA_NEUTRA_OSCURO,
+        "hex_primario": "#1e3a8a", # Azul oscuro
+        "icono": "GAVEL",
+    },
 }
 
 
